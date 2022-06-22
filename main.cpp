@@ -1,7 +1,7 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
-
+#include <cassert>
 #include <SDL2/SDL.h>
 
 #define WIDTH 800
@@ -51,6 +51,7 @@ vec3 multiply_matrix(vec3 &v, mat4 &m)
 
 struct triangle {
 	vec3 vs[3] = {};
+	int color = 0xff;
 
 	friend ostream& operator<<(ostream &os, triangle &t)
 	{
@@ -65,59 +66,34 @@ void render_triangle(SDL_Renderer *renderer, triangle t)
 	SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
 }
 
-void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
+float cross_product(vec3 a, vec3 b)
 {
-	float slope1 = (t.vs[1].x - t.vs[0].x) / (t.vs[1].y - t.vs[0].y);
-	float slope2 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
-
-	float x1 = t.vs[0].x;
-	float x2 = t.vs[0].x;
-
-	for (float scan_y = t.vs[0].y; scan_y <= t.vs[1].y; scan_y++)
-	{
-		SDL_RenderDrawLineF(renderer, x1, scan_y, x2, scan_y);
-		x1 += slope1;
-		x2 += slope2;
-	}
-}
-
-void render_triangle_top_flat(SDL_Renderer *renderer, triangle t)
-{
-	float slope1 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
-	float slope2 = (t.vs[2].x - t.vs[1].x) / (t.vs[2].y - t.vs[1].y);
-
-	float x1 = t.vs[2].x;
-	float x2 = t.vs[2].x;
-
-	for (float scan_y = t.vs[2].y; scan_y > t.vs[0].y; scan_y--)
-	{
-		SDL_RenderDrawLineF(renderer, x1, scan_y, x2, scan_y);
-		x1 -= slope1;
-		x2 -= slope2;
-	}
+	return a.x * b.y - b.x * a.y;
 }
 
 void render_triangle_filled(SDL_Renderer *renderer, triangle t)
 {
-	if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
-	if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
-	if (t.vs[2].y < t.vs[1].y) swap(t.vs[2], t.vs[1]);
+	SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
 
-	if (t.vs[1].y == t.vs[2].y) render_triangle_bottom_flat(renderer, t);
-	else if (t.vs[0].y == t.vs[1].y) render_triangle_top_flat(renderer, t);
-	else
+	int max_x = max(t.vs[0].x, max(t.vs[1].x, t.vs[2].x));
+	int min_x = min(t.vs[0].x, min(t.vs[1].x, t.vs[2].x));
+	int max_y = max(t.vs[0].y, max(t.vs[1].y, t.vs[2].y));
+	int min_y = min(t.vs[0].y, min(t.vs[1].y, t.vs[2].y));
+
+	vec3 v1 = {t.vs[1].x - t.vs[0].x, t.vs[1].y - t.vs[0].y, 0};
+	vec3 v2 = {t.vs[2].x - t.vs[0].x, t.vs[2].y - t.vs[0].y, 0};
+
+	for (int x = min_x; x <= max_x; x++)
 	{
-		vec3 tmp = {
-			.x = t.vs[0].x + ((t.vs[1].y - t.vs[0].y) / (t.vs[2].y - t.vs[0].y)) * (t.vs[2].x - t.vs[0].x),
-			.y = t.vs[1].y,
-			.z = 0,
-		};
+		for (int y = min_y; y <= max_y; y++)
+		{
+			vec3 v3 = {x - t.vs[0].x, y - t.vs[0].y, 0};
 
-		triangle t1 = {t.vs[0], t.vs[1], tmp};
-		triangle t2 = {t.vs[1], tmp, t.vs[2]};
+			float a = (float)cross_product(v3, v2) / cross_product(v1, v2);
+			float b = (float)cross_product(v1, v3) / cross_product(v1, v2);
 
-		render_triangle_bottom_flat(renderer, t1);
-		render_triangle_top_flat(renderer, t2);
+			if ((a >= 0) && (b >= 0) && (a + b <= 1)) SDL_RenderDrawPoint(renderer, x, y);
+		}
 	}
 }
 
@@ -296,7 +272,6 @@ int main()
 			SDL_SetRenderDrawColor(renderer, 18, 18, 18, 255);
 			SDL_RenderClear(renderer);
 
-			SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 			state.update(renderer, delta);
 			SDL_RenderPresent(renderer);
 
