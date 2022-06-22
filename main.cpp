@@ -5,6 +5,7 @@
 #include <cmath>
 #include <iostream>
 #include <cassert>
+#include <algorithm>
 #include <SDL2/SDL.h>
 
 #define WIDTH 800
@@ -158,6 +159,8 @@ public:
 		// delta ms -> s
 		angle += delta / 1000.0f;
 
+		//std::cout << "delta = " << delta << ", angle = " << angle << std::endl;
+
 		mat4 rot_z{};
 		rot_z.m[0][0] = cosf(angle);
 		rot_z.m[0][1] = sinf(angle);
@@ -174,7 +177,9 @@ public:
 		rot_x.m[2][2] = cosf(angle * 0.5f);
 		rot_x.m[3][3] = 1;
 
-		for (auto t : loaded_mesh.ts)
+		vector<triangle> raster_vec{};
+
+		for (auto &t : loaded_mesh.ts)
 		{
 			triangle rot1_t;
 			for_range(i, 0, 3) rot1_t.vs[i] = multiply_matrix(t.vs[i], rot_z);
@@ -226,12 +231,23 @@ public:
 					proj_t.vs[i].y = (proj_t.vs[i].y + 1) * 0.5f * HEIGHT;
 				}
 
-				render_triangle_filled(renderer, proj_t);
-				//render_triangle(renderer, proj_t);
+				raster_vec.push_back(proj_t);
 				//std::cout << proj_t << std::endl;
 			}
 		}
-		//std::cout << "delta = " << delta << ", angle = " << angle << std::endl;
+
+		sort(raster_vec.begin(), raster_vec.end(), [](triangle &t1, triangle &t2)
+		{
+			float z1 = (t1.vs[0].z + t1.vs[1].z + t1.vs[2].z) / 3.0f;
+			float z2 = (t2.vs[0].z + t2.vs[1].z + t2.vs[2].z) / 3.0f;
+			return z1 > z2;
+		});
+
+		for (auto &t : raster_vec)
+		{
+			render_triangle_filled(renderer, t);
+			//render_triangle(renderer, proj_t);
+		}
 	}
 
 private:
