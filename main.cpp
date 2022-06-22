@@ -1,3 +1,6 @@
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -99,6 +102,38 @@ void render_triangle_filled(SDL_Renderer *renderer, triangle t)
 
 struct mesh {
 	vector<triangle> ts;
+
+	bool load(const char *path)
+	{
+		ifstream f(path);
+		if (!f.is_open()) return false;
+
+		vector<vec3> verts;
+		while (!f.eof())
+		{
+			char buf[256];
+			f.getline(buf, 128);
+
+			stringstream s;
+			s << buf;
+
+			char c;
+
+			if (buf[0] == 'v')
+			{
+				vec3 v;
+				s >> c >> v.x >> v.y >> v.z;
+				verts.push_back(v);
+			}
+			else if (buf[0] == 'f')
+			{
+				int face[3];
+				s >> c >> face[0] >> face[1] >> face[2];
+				ts.push_back({verts[face[0] - 1], verts[face[1] - 1], verts[face[2] - 1]});
+			}
+		}
+		return true;
+	}
 };
 
 float rad(float angle)
@@ -109,33 +144,8 @@ float rad(float angle)
 
 class  GlState {
 public:
-	GlState() {
-		cube_mesh.ts = {
-			// south
-			{ 0, 0, 0,   0, 1, 0,   1, 1, 0 },
-			{ 0, 0, 0,   1, 1, 0,   1, 0, 0 },
-
-			// east
-			{ 1, 0, 0,   1, 1, 0,   1, 1, 1 },
-			{ 1, 0, 0,   1, 1, 1,   1, 0, 1 },
-
-			// north
-			{ 1, 0, 1,   1, 1, 1,   0, 1, 1 },
-			{ 1, 0, 1,   0, 1, 1,   0, 0, 1 },
-
-			// west
-			{ 0, 0, 1,   0, 1, 1,   0, 1, 0 },
-			{ 0, 0, 1,   0, 1, 0,   0, 0, 0 },
-
-			// up
-			{ 0, 1, 0,   0, 1, 1,   1, 1, 1 },
-			{ 0, 1, 0,   1, 1, 1,   1, 1, 0 },
-
-			// bottom
-			{ 1, 0, 1,   0, 0, 1,   0, 0, 0 },
-			{ 1, 0, 1,   0, 0, 0,   1, 0, 0 },
-		};
-
+	GlState(mesh &mesh, float offset = 8) : loaded_mesh(mesh), offset(offset)
+	{
 		proj_matrix.m[0][0] = aspect_ratio * fov_rad;
 		proj_matrix.m[1][1] = fov_rad;
 		proj_matrix.m[2][2] = far / (far - near);
@@ -164,7 +174,7 @@ public:
 		rot_x.m[2][2] = cosf(angle * 0.5f);
 		rot_x.m[3][3] = 1;
 
-		for (auto t : cube_mesh.ts)
+		for (auto t : loaded_mesh.ts)
 		{
 			triangle rot1_t;
 			for_range(i, 0, 3) rot1_t.vs[i] = multiply_matrix(t.vs[i], rot_z);
@@ -225,23 +235,28 @@ public:
 	}
 
 private:
-	mesh cube_mesh{};
+	mesh loaded_mesh{};
 	mat4 proj_matrix{};
 
 	vec3 camera{};
 	float near = 0.1;
 	float far = 1000;
+	float angle = 0;
 
 	float fov = 90;
 	float fov_rad = 1.0f / tanf(rad(fov * 0.5f));
 
 	float aspect_ratio = (float)HEIGHT / (float)WIDTH;
-	float offset = 3;
-	float angle = 0;
+	float offset;
 };
 
-int main()
+int main(int argc, const char **argv)
 {
+	mesh mesh;
+
+	assert(argc == 2);
+	assert(mesh.load(argv[1]));
+
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0)
 	{
 		std::cerr << "Unable to initialize SDL2: " << SDL_GetError() << std::endl;
@@ -251,7 +266,7 @@ int main()
 	SDL_Window *window = SDL_CreateWindow("gl3d", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, 0);
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-	GlState state;
+	GlState state(mesh);
 	bool running = true;
 
 	const float freq = SDL_GetPerformanceFrequency();
