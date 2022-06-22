@@ -11,6 +11,11 @@
 
 using namespace std;
 
+float distance(float x, float y, float z)
+{
+	return sqrtf(x*x + y*y + z*z);
+}
+
 struct vec3 {
 	float x, y, z;
 
@@ -139,18 +144,38 @@ public:
 			triangle trans_t = rot2_t;
 			for_range(i, 0, 3) trans_t.vs[i].z += offset;
 
-			triangle proj_t;
-			for_range(i, 0, 3) proj_t.vs[i] = multiply_matrix(trans_t.vs[i], proj_matrix);
+			vec3 normal, line1, line2;
+			line1.x = trans_t.vs[1].x - trans_t.vs[0].x;
+			line1.y = trans_t.vs[1].y - trans_t.vs[0].y;
+			line1.z = trans_t.vs[1].z - trans_t.vs[0].z;
 
-			for_range(i, 0, 3)
+			line2.x = trans_t.vs[2].x - trans_t.vs[0].x;
+			line2.y = trans_t.vs[2].y - trans_t.vs[0].y;
+			line2.z = trans_t.vs[2].z - trans_t.vs[0].z;
+
+			normal.x = line1.y * line2.z - line1.z * line2.y;
+			normal.y = line1.z * line2.x - line1.x * line2.z;
+			normal.z = line1.x * line2.y - line1.y * line2.x;
+
+			float l = distance(normal.x, normal.y, normal.z);
+			normal.x /= l;
+			normal.y /= l;
+			normal.z /= l;
+
+			if (normal.z < 0)
 			{
-				proj_t.vs[i].x = (proj_t.vs[i].x + 1) * 0.5f * WIDTH;
-				proj_t.vs[i].y = (proj_t.vs[i].y + 1) * 0.5f * HEIGHT;
+				triangle proj_t;
+				for_range(i, 0, 3) proj_t.vs[i] = multiply_matrix(trans_t.vs[i], proj_matrix);
+
+				for_range(i, 0, 3)
+				{
+					proj_t.vs[i].x = (proj_t.vs[i].x + 1) * 0.5f * WIDTH;
+					proj_t.vs[i].y = (proj_t.vs[i].y + 1) * 0.5f * HEIGHT;
+				}
+
+				proj_t.render(renderer);
+				//std::cout << proj_t << std::endl;
 			}
-
-			proj_t.render(renderer);
-			//std::cout << proj_t << std::endl;
-
 		}
 		//std::cout << "delta = " << delta << ", angle = " << angle << std::endl;
 	}
