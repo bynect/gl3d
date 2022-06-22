@@ -52,18 +52,74 @@ vec3 multiply_matrix(vec3 &v, mat4 &m)
 struct triangle {
 	vec3 vs[3] = {};
 
-	void render(SDL_Renderer *renderer)
-	{
-		SDL_RenderDrawLineF(renderer, vs[0].x, vs[0].y, vs[1].x, vs[1].y);
-		SDL_RenderDrawLineF(renderer, vs[0].x, vs[0].y, vs[2].x, vs[2].y);
-		SDL_RenderDrawLineF(renderer, vs[2].x, vs[2].y, vs[1].x, vs[1].y);
-	}
-
 	friend ostream& operator<<(ostream &os, triangle &t)
 	{
 		return os << "triangle {" << t.vs[0] << ", " << t.vs[1] << ", " << t.vs[2] << "}";
 	}
 };
+
+void render_triangle(SDL_Renderer *renderer, triangle t)
+{
+	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
+	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
+	SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
+}
+
+void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
+{
+	float slope1 = (t.vs[1].x - t.vs[0].x) / (t.vs[1].y - t.vs[0].y);
+	float slope2 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
+
+	float x1 = t.vs[0].x;
+	float x2 = t.vs[0].x;
+
+	for (float scan_y = t.vs[0].y; scan_y <= t.vs[1].y; scan_y++)
+	{
+		SDL_RenderDrawLineF(renderer, x1, scan_y, x2, scan_y);
+		x1 += slope1;
+		x2 += slope2;
+	}
+}
+
+void render_triangle_top_flat(SDL_Renderer *renderer, triangle t)
+{
+	float slope1 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
+	float slope2 = (t.vs[2].x - t.vs[1].x) / (t.vs[2].y - t.vs[1].y);
+
+	float x1 = t.vs[2].x;
+	float x2 = t.vs[2].x;
+
+	for (float scan_y = t.vs[2].y; scan_y > t.vs[0].y; scan_y--)
+	{
+		SDL_RenderDrawLineF(renderer, x1, scan_y, x2, scan_y);
+		x1 -= slope1;
+		x2 -= slope2;
+	}
+}
+
+void render_triangle_filled(SDL_Renderer *renderer, triangle t)
+{
+	if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
+	if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
+	if (t.vs[2].y < t.vs[1].y) swap(t.vs[2], t.vs[1]);
+
+	if (t.vs[1].y == t.vs[2].y) render_triangle_bottom_flat(renderer, t);
+	else if (t.vs[0].y == t.vs[1].y) render_triangle_top_flat(renderer, t);
+	else
+	{
+		vec3 tmp = {
+			.x = t.vs[0].x + ((t.vs[1].y - t.vs[0].y) / (t.vs[2].y - t.vs[0].y)) * (t.vs[2].x - t.vs[0].x),
+			.y = t.vs[1].y,
+			.z = 0,
+		};
+
+		triangle t1 = {t.vs[0], t.vs[1], tmp};
+		triangle t2 = {t.vs[1], tmp, t.vs[2]};
+
+		render_triangle_bottom_flat(renderer, t1);
+		render_triangle_top_flat(renderer, t2);
+	}
+}
 
 struct mesh {
 	vector<triangle> ts;
@@ -103,7 +159,6 @@ public:
 			{ 1, 0, 1,   0, 0, 1,   0, 0, 0 },
 			{ 1, 0, 1,   0, 0, 0,   1, 0, 0 },
 		};
-
 
 		proj_matrix.m[0][0] = aspect_ratio * fov_rad;
 		proj_matrix.m[1][1] = fov_rad;
@@ -162,7 +217,9 @@ public:
 			normal.y /= l;
 			normal.z /= l;
 
-			if (normal.z < 0)
+			if (normal.x * (trans_t.vs[0].x - camera.x) +
+				normal.y * (trans_t.vs[0].y - camera.y) +
+				normal.z * (trans_t.vs[0].z - camera.z) < 0)
 			{
 				triangle proj_t;
 				for_range(i, 0, 3) proj_t.vs[i] = multiply_matrix(trans_t.vs[i], proj_matrix);
@@ -173,7 +230,8 @@ public:
 					proj_t.vs[i].y = (proj_t.vs[i].y + 1) * 0.5f * HEIGHT;
 				}
 
-				proj_t.render(renderer);
+				render_triangle_filled(renderer, proj_t);
+				//render_triangle(renderer, proj_t);
 				//std::cout << proj_t << std::endl;
 			}
 		}
@@ -184,6 +242,7 @@ private:
 	mesh cube_mesh{};
 	mat4 proj_matrix{};
 
+	vec3 camera{};
 	float near = 0.1;
 	float far = 1000;
 
