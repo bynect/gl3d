@@ -197,7 +197,17 @@ public:
 				normal.y * (trans_t.vs[0].y - camera.y) +
 				normal.z * (trans_t.vs[0].z - camera.z) < 0)
 			{
+				vec3 light = {0, 0, -1};
+				float l = distance(light.x, light.y, light.z);
+				light.x /= l;
+				light.y /= l;
+				light.z /= l;
+
+				float light_dp = normal.x * light.x + normal.y * light.y + normal.z * light.z;
+				int color = 255 * light_dp;
+
 				triangle proj_t;
+				proj_t.color = color;
 				for_range(i, 0, 3) proj_t.vs[i] = multiply_matrix(trans_t.vs[i], proj_matrix);
 
 				for_range(i, 0, 3)
