@@ -25,7 +25,7 @@ struct vec3 {
 	float x = 0;
 	float y = 0;
 	float z = 0;
-	float w = 1; // hack
+	float w = 1; // dummy
 
 	friend ostream& operator<<(ostream &os, vec3 &v)
 	{
@@ -197,118 +197,6 @@ struct triangle {
 	}
 };
 
-void render_triangle_frame(SDL_Renderer *renderer, triangle t)
-{
-	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
-	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
-	SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
-}
-
-void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
-{
-	float slope0 = (t.vs[1].x - t.vs[0].x) / (t.vs[1].y - t.vs[0].y);
-	float slope1 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
-
-	const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
-	const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
-
-	vector<SDL_Point> points;
-	for (int y = y_min; y < y_max; y++)
-	{
-		const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
-		const float px1 = slope1 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
-
-		const int x_min = (int)ceilf(px0 - 0.5f);
-		const int x_max = (int)ceilf(px1 - 0.5f);
-
-		for (int x = x_min; x < x_max; x++) points.push_back({x, y});
-		SDL_RenderDrawPoints(renderer, points.data(), points.size());
-		points.clear();
-	}
-}
-
-void render_triangle_top_flat(SDL_Renderer *renderer, triangle t)
-{
-	float slope0 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
-	float slope1 = (t.vs[2].x - t.vs[1].x) / (t.vs[2].y - t.vs[1].y);
-
-	const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
-	const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
-
-	vector<SDL_Point> points;
-	for (int y = y_min; y < y_max; y++)
-	{
-		const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
-		const float px1 = slope1 * ((float)y + 0.5f - t.vs[1].y) + t.vs[1].x;
-
-		const int x_min = (int)ceilf(px0 - 0.5f);
-		const int x_max = (int)ceilf(px1 - 0.5f);
-
-		for (int x = x_min; x < x_max; x++) points.push_back({x, y});
-		SDL_RenderDrawPoints(renderer, points.data(), points.size());
-		points.clear();
-	}
-}
-
-// triangle scanline rasterization with top-left rule
-void render_triangle_filled(SDL_Renderer *renderer, triangle t)
-{
-	SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
-
-	if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
-	if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
-	if (t.vs[2].y < t.vs[1].y) swap(t.vs[2], t.vs[1]);
-
-	if (t.vs[1].y == t.vs[2].y)
-	{
-		if (t.vs[2].x < t.vs[1].x) swap(t.vs[2], t.vs[1]);
-		render_triangle_bottom_flat(renderer, t);
-	}
-	else if (t.vs[0].y == t.vs[1].y)
-	{
-		if (t.vs[1].x < t.vs[0].x) swap(t.vs[0], t.vs[1]);
-		render_triangle_top_flat(renderer, t);
-	}
-	else
-	{
-		const float split = (t.vs[1].y - t.vs[0].y) / (t.vs[2].y - t.vs[0].y);
-		const vec3 vi = {
-			.x = t.vs[0].x + (t.vs[2].x - t.vs[0].x) * split,
-			.y = t.vs[0].y + (t.vs[2].y - t.vs[0].y) * split,
-			.z = 0,
-		};
-
-		triangle tmp1, tmp2;
-		tmp1.color = tmp2.color = t.color;
-
-		if (t.vs[1].x < vi.x)
-		{
-			// major right
-			tmp1.vs[0] = t.vs[0];
-			tmp1.vs[1] = t.vs[1];
-			tmp1.vs[2] = vi;
-
-			tmp2.vs[0] = t.vs[1];
-			tmp2.vs[1] = vi;
-			tmp2.vs[2] = t.vs[2];
-		}
-		else
-		{
-			// major left
-			tmp1.vs[0] = t.vs[0];
-			tmp1.vs[1] = vi;
-			tmp1.vs[2] = t.vs[1];
-
-			tmp2.vs[0] = vi;
-			tmp2.vs[1] = t.vs[1];
-			tmp2.vs[2] = t.vs[2];
-		}
-
-		render_triangle_bottom_flat(renderer, tmp1);
-		render_triangle_top_flat(renderer, tmp2);
-	}
-}
-
 struct mesh {
 	vector<triangle> ts;
 
@@ -345,6 +233,130 @@ struct mesh {
 	}
 };
 
+class GlRender {
+public:
+	GlRender(SDL_Renderer *renderer, size_t batch_size = 1024) : renderer(renderer)
+	{
+		points.reserve(batch_size);
+	}
+
+	void triangle_frame(triangle t)
+	{
+		SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
+
+		SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
+		SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
+		SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
+	}
+
+	// triangle scanline rasterization with top-left rule
+	void triangle_filled(triangle t)
+	{
+		SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
+
+		if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
+		if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
+		if (t.vs[2].y < t.vs[1].y) swap(t.vs[2], t.vs[1]);
+
+		if (t.vs[1].y == t.vs[2].y)
+		{
+			if (t.vs[2].x < t.vs[1].x) swap(t.vs[2], t.vs[1]);
+			triangle_bottom_flat(t);
+		}
+		else if (t.vs[0].y == t.vs[1].y)
+		{
+			if (t.vs[1].x < t.vs[0].x) swap(t.vs[0], t.vs[1]);
+			triangle_top_flat(t);
+		}
+		else
+		{
+			const float split = (t.vs[1].y - t.vs[0].y) / (t.vs[2].y - t.vs[0].y);
+			const vec3 vi = {
+				.x = t.vs[0].x + (t.vs[2].x - t.vs[0].x) * split,
+				.y = t.vs[0].y + (t.vs[2].y - t.vs[0].y) * split,
+				.z = 0,
+			};
+
+			triangle tmp1, tmp2;
+			tmp1.color = tmp2.color = t.color;
+
+			if (t.vs[1].x < vi.x)
+			{
+				// major right
+				tmp1.vs[0] = t.vs[0];
+				tmp1.vs[1] = t.vs[1];
+				tmp1.vs[2] = vi;
+
+				tmp2.vs[0] = t.vs[1];
+				tmp2.vs[1] = vi;
+				tmp2.vs[2] = t.vs[2];
+			}
+			else
+			{
+				// major left
+				tmp1.vs[0] = t.vs[0];
+				tmp1.vs[1] = vi;
+				tmp1.vs[2] = t.vs[1];
+
+				tmp2.vs[0] = vi;
+				tmp2.vs[1] = t.vs[1];
+				tmp2.vs[2] = t.vs[2];
+			}
+
+			triangle_bottom_flat(tmp1);
+			triangle_top_flat(tmp2);
+		}
+	}
+
+private:
+	SDL_Renderer *renderer;
+	vector<SDL_Point> points;
+
+	void triangle_bottom_flat(triangle t)
+	{
+		float slope0 = (t.vs[1].x - t.vs[0].x) / (t.vs[1].y - t.vs[0].y);
+		float slope1 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
+
+		const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
+		const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
+
+		for (int y = y_min; y < y_max; y++)
+		{
+			const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
+			const float px1 = slope1 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
+
+			const int x_min = (int)ceilf(px0 - 0.5f);
+			const int x_max = (int)ceilf(px1 - 0.5f);
+
+			for (int x = x_min; x < x_max; x++) points.push_back({x, y});
+			SDL_RenderDrawPoints(renderer, points.data(), points.size());
+			points.clear();
+		}
+	}
+
+	void triangle_top_flat(triangle t)
+	{
+		float slope0 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
+		float slope1 = (t.vs[2].x - t.vs[1].x) / (t.vs[2].y - t.vs[1].y);
+
+		const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
+		const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
+
+		for (int y = y_min; y < y_max; y++)
+		{
+			const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
+			const float px1 = slope1 * ((float)y + 0.5f - t.vs[1].y) + t.vs[1].x;
+
+			const int x_min = (int)ceilf(px0 - 0.5f);
+			const int x_max = (int)ceilf(px1 - 0.5f);
+
+			for (int x = x_min; x < x_max; x++) points.push_back({x, y});
+			SDL_RenderDrawPoints(renderer, points.data(), points.size());
+			points.clear();
+		}
+	}
+};
+
 class  GlState {
 public:
 	GlState(mesh &mesh) : loaded_mesh(mesh)
@@ -352,7 +364,7 @@ public:
 		proj_matrix = mat4::projection(fov, aspect_ratio, near, far);
 	}
 
-	void update(SDL_Renderer *renderer, float delta)
+	void update(GlRender &render, float delta)
 	{
 		// delta ms -> s
 		angle += delta / 1000.0f;
@@ -418,9 +430,8 @@ public:
 
 		for (auto &t : raster_vec)
 		{
-			render_triangle_filled(renderer, t);
-			//SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
-			//render_triangle_frame(renderer, t);
+			render.triangle_filled(t);
+			//render.triangle_frame(t);
 		}
 	}
 
@@ -454,6 +465,7 @@ int main(int argc, const char **argv)
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
 	GlState state(mesh);
+	GlRender render(renderer);
 	bool running = true;
 
 	const float freq = SDL_GetPerformanceFrequency();
@@ -484,7 +496,7 @@ int main(int argc, const char **argv)
 			SDL_SetRenderDrawColor(renderer, 18, 18, 18, 255);
 			SDL_RenderClear(renderer);
 
-			state.update(renderer, delta);
+			state.update(render, delta);
 			SDL_RenderPresent(renderer);
 
 			last_time = current_time;
