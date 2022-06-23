@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <deque>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -228,6 +229,19 @@ struct mat4 {
 	}
 };
 
+// plane_normal should be normalized
+vec3 intersect_plane(vec3 &plane_point, vec3 &plane_normal, vec3 &line_start, vec3 &line_end)
+{
+	float plane_d = -plane_normal.dot_product(plane_point);
+	float ad = line_start.dot_product(plane_normal);
+	float bd = line_end.dot_product(plane_normal);
+
+	float t = (-plane_d - ad) / (bd - ad);
+	vec3 line1 = line_end - line_start;
+	vec3 line2 = line1 * t;
+	return line_start + line2;
+}
+
 struct triangle {
 	vec3 vs[3] = {};
 	SDL_Color color = {255, 255, 255, SDL_ALPHA_OPAQUE};
@@ -235,6 +249,82 @@ struct triangle {
 	friend ostream& operator<<(ostream &os, triangle &t)
 	{
 		return os << "triangle {" << t.vs[0] << ", " << t.vs[1] << ", " << t.vs[2] << "}";
+	}
+
+	static int clip_plane(vec3 plane_point, vec3 plane_normal, triangle &in, triangle &out1, triangle &out2)
+	{
+		plane_normal = plane_normal.normalize();
+
+		auto distance = [&](vec3 &p)
+		{
+			vec3 n = p.normalize();
+			return plane_normal.x * p.x + plane_normal.y * p.y + plane_normal.z * p.z - plane_normal.dot_product(plane_point);
+		};
+
+		vec3 *inside[3];
+		int inside_n = 0;
+
+		vec3 *outside[3];
+		int outside_n = 0;
+
+		float d0 = distance(in.vs[0]);
+		float d1 = distance(in.vs[1]);
+		float d2 = distance(in.vs[2]);
+
+		if (d0 >= 0) inside[inside_n++] = &in.vs[0];
+		else outside[outside_n++] = &in.vs[0];
+
+		if (d1 >= 0) inside[inside_n++] = &in.vs[1];
+		else outside[outside_n++] = &in.vs[1];
+
+		if (d2 >= 0) inside[inside_n++] = &in.vs[2];
+		else outside[outside_n++] = &in.vs[2];
+
+		assert(inside_n >= 0 && inside_n < 4);
+		assert(outside_n >= 0 && outside_n < 4);
+
+		if (inside_n == 0)
+		{
+			// All points lie outside of the plane
+			return 0;
+		}
+		else if (inside_n == 3)
+		{
+			// All points lie inside of the plane
+			out1 = in;
+			return 1;
+		}
+		else if (inside_n == 1)
+		{
+			assert(outside_n == 2);
+
+			out1.color = in.color;
+			out1.vs[0] = *inside[0];
+
+			out1.vs[1] = intersect_plane(plane_point, plane_normal, *inside[0], *outside[0]);
+			out1.vs[2] = intersect_plane(plane_point, plane_normal, *inside[0], *outside[1]);
+
+			return 1;
+		}
+		else if (inside_n == 2)
+		{
+			assert(outside_n == 1);
+
+			out1.color = in.color;
+			out2.color = in.color;
+
+			out1.vs[0] = *inside[0];
+			out1.vs[1] = *inside[1];
+			out1.vs[2] = intersect_plane(plane_point, plane_normal, *inside[0], *outside[0]);
+
+			out2.vs[0] = *inside[1];
+			out2.vs[1] = *inside[2];
+			out2.vs[2] = intersect_plane(plane_point, plane_normal, *inside[1], *outside[0]);
+
+			return 2;
+		}
+
+		assert(false && "Unreachable");
 	}
 };
 
@@ -478,25 +568,31 @@ public:
 				triangle view_t;
 				for_range(i, 0, 3) view_t.vs[i] = mat_view * trans_t.vs[i];
 
-				triangle proj_t;
-				proj_t.color = {greyscale, greyscale, greyscale};
+				triangle clipped[2];
+				int clipped_n = triangle::clip_plane({0, 0, near}, {0, 0, 1}, view_t, clipped[0], clipped[1]);
 
-				for_range(i, 0, 3)
+				for_range(n, 0, clipped_n)
 				{
-					proj_t.vs[i] = mat_proj * view_t.vs[i];
-					proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
-				}
+					triangle proj_t;
+					proj_t.color = {greyscale, greyscale, greyscale};
 
-				vec3 offset = {1, 1, 0};
-				for_range(i, 0, 3)
-				{
-					proj_t.vs[i] = proj_t.vs[i] + offset;
-					proj_t.vs[i].x *= 0.5f * (float)WIDTH;
-					proj_t.vs[i].y *= 0.5f * (float)HEIGHT;
-				}
+					for_range(i, 0, 3)
+					{
+						proj_t.vs[i] = mat_proj * clipped[n].vs[i];
+						if (proj_t.vs[i].w != 0) proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
+					}
 
-				raster_vec.push_back(proj_t);
-				//std::cout << proj_t << std::endl;
+					vec3 offset = {1, 1, 0};
+					for_range(i, 0, 3)
+					{
+						proj_t.vs[i] = proj_t.vs[i] + offset;
+						proj_t.vs[i].x *= 0.5f * (float)WIDTH;
+						proj_t.vs[i].y *= 0.5f * (float)HEIGHT;
+					}
+
+					raster_vec.push_back(proj_t);
+					//std::cout << proj_t << std::endl;
+				}
 			}
 		}
 
@@ -507,11 +603,56 @@ public:
 			return z1 > z2;
 		});
 
-		for (auto &t : raster_vec)
+		for (auto &prep_t : raster_vec)
 		{
-			render.triangle_filled(t);
-			//t.color = {0, 255, 0};
-			//render.triangle_frame(t);
+			deque<triangle> triangles;
+			triangles.push_back(prep_t);
+
+			int triangles_n = 1;
+			for_range(plane, 0, 4)
+			{
+				triangle clipped[2];
+				int clipped_n = 0;
+
+				while (triangles_n > 0)
+				{
+					auto front = triangles.front();
+					triangles.pop_front();
+					triangles_n--;
+
+					switch (plane)
+					{
+						case 0:
+							clipped_n = triangle::clip_plane({0, 0, 0}, {0, 1, 0}, front, clipped[0], clipped[1]);
+							break;
+
+						case 1:
+							clipped_n = triangle::clip_plane({0, (float)HEIGHT - 1, 0}, {0, -1, 0}, front, clipped[0], clipped[1]);
+							break;
+
+						case 2:
+							clipped_n = triangle::clip_plane({0, 0, 0}, {1, 0, 0}, front, clipped[0], clipped[1]);
+							break;
+
+						case 3:
+							clipped_n = triangle::clip_plane({(float)WIDTH - 1, 0, 0}, {-1, 0, 0}, front, clipped[0], clipped[1]);
+							break;
+
+						default:
+							assert(false && "Unreachable");
+					}
+
+					for_range(n, 0, clipped_n) triangles.push_back(clipped[n]);
+				}
+				triangles_n = triangles.size();
+			}
+
+			for (auto &t : triangles)
+			{
+				render.triangle_filled(t);
+				t.color = {0, 255, 0};
+				render.triangle_frame(t);
+			}
 		}
 	}
 
