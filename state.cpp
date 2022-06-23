@@ -53,7 +53,7 @@ void GlState::update(GlRender &render, float delta)
 			for_range(i, 0, 3) view_t.vs[i] = mat_view * trans_t.vs[i];
 
 			triangle clipped[2];
-			int clipped_n = triangle::clip_plane({0, 0, near}, {0, 0, 1}, view_t, clipped[0], clipped[1]);
+			int clipped_n = triangle::clip_plane({0.0f, 0.0f, near_plane}, {0.0f, 0.0f, 1.0f}, view_t, clipped[0], clipped[1]);
 
 			for_range(n, 0, clipped_n)
 			{
@@ -142,39 +142,42 @@ void GlState::update(GlRender &render, float delta)
 
 void GlState::keypress(SDL_KeyboardEvent &event, float delta)
 {
-	auto forward = look_dir * (0.08f * delta);
+	const float camera_vel = 0.08f;
+	const float yaw_vel = 0.02f;
+
+	auto forward = look_dir * (camera_vel * delta);
 	switch (event.keysym.sym)
 	{
 		case 'w':
-			camera.y += 0.08f * delta;
-			break;
-
-		case 'a':
-			camera.x -= 0.08f * delta;
-			break;
-
-		case 's':
-			camera.y -= 0.08f * delta;
-			break;
-
-		case 'd':
-			camera.x += 0.08f * delta;
-			break;
-
-		case SDLK_UP:
 			camera = camera + forward;
 			break;
 
-		case SDLK_LEFT:
-			yaw -= 0.02f * delta;
+		case 'a':
+			yaw -= yaw_vel * delta;
 			break;
 
-		case SDLK_DOWN:
+		case 's':
 			camera = camera - forward;
 			break;
 
+		case 'd':
+			yaw += yaw_vel * delta;
+			break;
+
+		case SDLK_UP:
+			camera.y += camera_vel * delta;
+			break;
+
+		case SDLK_LEFT:
+			camera.x -= camera_vel * delta;
+			break;
+
+		case SDLK_DOWN:
+			camera.y -= camera_vel * delta;
+			break;
+
 		case SDLK_RIGHT:
-			yaw += 0.02f * delta;
+			camera.x += camera_vel * delta;
 			break;
 
 		default:
