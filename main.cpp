@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -22,9 +23,7 @@ float rad(float angle)
 }
 
 struct vec3 {
-	float x = 0;
-	float y = 0;
-	float z = 0;
+	float x = 0, y = 0, z = 0;
 	float w = 1; // dummy
 
 	friend ostream& operator<<(ostream &os, vec3 &v)
@@ -189,7 +188,7 @@ struct mat4 {
 
 struct triangle {
 	vec3 vs[3] = {};
-	int color = 0xff;
+	SDL_Color color = {255, 255, 255, SDL_ALPHA_OPAQUE};
 
 	friend ostream& operator<<(ostream &os, triangle &t)
 	{
@@ -242,7 +241,7 @@ public:
 
 	void triangle_frame(triangle t)
 	{
-		SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
+		SDL_SetRenderDrawColor(renderer, t.color.r, t.color.g, t.color.b, t.color.a);
 
 		SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
 		SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
@@ -252,7 +251,7 @@ public:
 	// triangle scanline rasterization with top-left rule
 	void triangle_filled(triangle t)
 	{
-		SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
+		SDL_SetRenderDrawColor(renderer, t.color.r, t.color.g, t.color.b, t.color.a);
 
 		if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
 		if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
@@ -400,7 +399,7 @@ public:
 				int greyscale = 255 * light_dp;
 
 				triangle proj_t;
-				proj_t.color = greyscale;
+				proj_t.color = {(uint8_t)greyscale, (uint8_t)greyscale, (uint8_t)greyscale};
 
 				for_range(i, 0, 3)
 				{
@@ -431,6 +430,7 @@ public:
 		for (auto &t : raster_vec)
 		{
 			render.triangle_filled(t);
+			//t.color = {0, 255, 0};
 			//render.triangle_frame(t);
 		}
 	}
