@@ -183,6 +183,49 @@ struct mat4 {
 		mat.m[3][2] = (-far * near) / (far - near);
 		return mat;
 	}
+
+	static mat4 point_at(vec3 &pos, vec3 &target, vec3 &up)
+	{
+		auto forward = target - pos;
+		forward = forward.normalize();
+
+		auto a = forward * up.dot_product(forward);
+		auto up2 = up - a;
+		up2 = up2.normalize();
+
+		auto right = up2.cross_product(forward);
+
+		mat4 mat = {{
+			{right.x, right.y, right.z, 0},
+			{up2.x, up2.y, up2.z, 0},
+			{forward.x, forward.y, forward.z, 0},
+			{pos.x, pos.y, pos.z, 1},
+		}};
+		return mat;
+	}
+
+	// Works only for rotation/translation matrices
+	mat4 quick_inverse()
+	{
+		mat4 mat;
+		mat.m[0][0] = m[0][0];
+		mat.m[0][1] = m[1][0];
+		mat.m[0][2] = m[2][0];
+		mat.m[0][3] = 0.0f;
+		mat.m[1][0] = m[0][1];
+		mat.m[1][1] = m[1][1];
+		mat.m[1][2] = m[2][1];
+		mat.m[1][3] = 0.0f;
+		mat.m[2][0] = m[0][2];
+		mat.m[2][1] = m[1][2];
+		mat.m[2][2] = m[2][2];
+		mat.m[2][3] = 0.0f;
+		mat.m[3][0] = -(m[3][0] * mat.m[0][0] + m[3][1] * mat.m[1][0] + m[3][2] * mat.m[2][0]);
+		mat.m[3][1] = -(m[3][0] * mat.m[0][1] + m[3][1] * mat.m[1][1] + m[3][2] * mat.m[2][1]);
+		mat.m[3][2] = -(m[3][0] * mat.m[0][2] + m[3][1] * mat.m[1][2] + m[3][2] * mat.m[2][2]);
+		mat.m[3][3] = 1.0f;
+		return mat;
+	}
 };
 
 struct triangle {
@@ -386,7 +429,7 @@ class  GlState {
 public:
 	GlState(mesh &mesh) : loaded_mesh(mesh)
 	{
-		proj_matrix = mat4::projection(fov, aspect_ratio, near, far);
+		mat_proj = mat4::projection(fov, aspect_ratio, near, far);
 	}
 
 	void update(GlRender &render, float delta)
@@ -400,6 +443,16 @@ public:
 
 		auto mat_trans = mat4::translation(0.0f, 0.0f, 5.0f);
 		auto mat_world = mat_rot_z * mat_rot_x * mat_trans;
+
+		vec3 up_dir = {0, 1, 0};
+		vec3 target_dir = {0, 0, 1};
+
+		auto mat_camera_rot = mat4::rotation_y(yaw);
+		look_dir = mat_camera_rot * target_dir;
+		target_dir = camera + look_dir;
+
+		auto mat_camera = mat4::point_at(camera, target_dir, up_dir);
+		auto mat_view = mat_camera.quick_inverse();
 
 		vector<triangle> raster_vec;
 		for (auto &t : loaded_mesh.ts)
@@ -422,12 +475,15 @@ public:
 				float light_dp = max(0.1f, light.dot_product(normal));
 				uint8_t greyscale = 255 * light_dp;
 
+				triangle view_t;
+				for_range(i, 0, 3) view_t.vs[i] = mat_view * trans_t.vs[i];
+
 				triangle proj_t;
 				proj_t.color = {greyscale, greyscale, greyscale};
 
 				for_range(i, 0, 3)
 				{
-					proj_t.vs[i] = proj_matrix * trans_t.vs[i];
+					proj_t.vs[i] = mat_proj * view_t.vs[i];
 					proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
 				}
 
@@ -459,11 +515,56 @@ public:
 		}
 	}
 
+	void keypress(SDL_KeyboardEvent &event, float delta)
+	{
+		auto forward = look_dir * (0.08f * delta);
+		switch (event.keysym.sym)
+		{
+			case 'w':
+				camera.y += 0.08f * delta;
+				break;
+
+			case 'a':
+				camera.x -= 0.08f * delta;
+				break;
+
+			case 's':
+				camera.y -= 0.08f * delta;
+				break;
+
+			case 'd':
+				camera.x += 0.08f * delta;
+				break;
+
+			case SDLK_UP:
+				camera = camera + forward;
+				break;
+
+			case SDLK_LEFT:
+				yaw -= 0.02f * delta;
+				break;
+
+			case SDLK_DOWN:
+				camera = camera - forward;
+				break;
+
+			case SDLK_RIGHT:
+				yaw += 0.02f * delta;
+				break;
+
+			default:
+				break;
+		}
+	}
+
 private:
 	mesh loaded_mesh;
-	mat4 proj_matrix;
+	mat4 mat_proj;
 
 	vec3 camera;
+	vec3 look_dir = {0, 0, 1};
+	float yaw = 0;
+
 	float near = 0.1;
 	float far = 1000;
 	float fov = 90;
@@ -508,6 +609,10 @@ int main(int argc, const char **argv)
 			{
 				case SDL_QUIT:
 					running = false;
+					break;
+
+				case SDL_KEYDOWN:
+					state.keypress(event.key, delta);
 					break;
 
 				default:
