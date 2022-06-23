@@ -110,7 +110,6 @@ struct mat4 {
 				mat.m[j][i] = m[j][0] * m2.m[0][i] + m[j][1] * m2.m[1][i] + m[j][2] * m2.m[2][i] + m[j][3] * m2.m[3][i];
 			}
 		}
-
 		return mat;
 	}
 
@@ -140,8 +139,8 @@ struct mat4 {
 	{
 		mat4 mat;
 		mat.m[0][0] = cosf(angle);
-		mat.m[0][1] = sinf(angle);
-		mat.m[1][0] = -sinf(angle);
+		mat.m[0][2] = sinf(angle);
+		mat.m[2][0] = -sinf(angle);
 		mat.m[1][1] = 1.0f;
 		mat.m[2][2] = cosf(angle);
 		mat.m[3][3] = 1.0f;
@@ -208,7 +207,7 @@ struct mesh {
 		while (!f.eof())
 		{
 			char buf[256];
-			f.getline(buf, 128);
+			f.getline(buf, 256);
 
 			stringstream s;
 			s << buf;
@@ -366,16 +365,14 @@ public:
 	void update(GlRender &render, float delta)
 	{
 		// delta ms -> s
-		angle += delta / 1000.0f;
+		//angle += delta / 1000.0f;
 		//std::cout << "delta = " << delta << ", angle = " << angle << std::endl;
 
-		auto mat_rot_x = mat4::rotation_x(angle);
 		auto mat_rot_z = mat4::rotation_z(angle * 0.5f);
+		auto mat_rot_x = mat4::rotation_x(angle);
 
-		auto mat_trans = mat4::translation(0.0f, 0.0f, 16.0f);
-
-		auto mat_world = mat_rot_z * mat_rot_x;
-		mat_world = mat_world * mat_trans;
+		auto mat_trans = mat4::translation(0.0f, 0.0f, 5.0f);
+		auto mat_world = mat_rot_z * mat_rot_x * mat_trans;
 
 		vector<triangle> raster_vec;
 		for (auto &t : loaded_mesh.ts)
@@ -392,14 +389,14 @@ public:
 			auto camera_ray = trans_t.vs[0] - camera;
 			if (normal.dot_product(camera_ray) < 0.0f)
 			{
-				vec3 light = {0, 0, -1};
+				vec3 light = {0, 1, -1};
 				light = light.normalize();
 
 				float light_dp = max(0.1f, light.dot_product(normal));
-				int greyscale = 255 * light_dp;
+				uint8_t greyscale = 255 * light_dp;
 
 				triangle proj_t;
-				proj_t.color = {(uint8_t)greyscale, (uint8_t)greyscale, (uint8_t)greyscale};
+				proj_t.color = {greyscale, greyscale, greyscale};
 
 				for_range(i, 0, 3)
 				{
