@@ -15,43 +15,177 @@
 
 using namespace std;
 
-float distance(float x, float y, float z)
+float rad(float angle)
 {
-	return sqrtf(x*x + y*y + z*z);
+	const float PI = 3.14159265;
+	return angle * PI / 180.0f;
 }
 
 struct vec3 {
-	float x, y, z;
+	float x = 0;
+	float y = 0;
+	float z = 0;
+	float w = 1; // hack
 
 	friend ostream& operator<<(ostream &os, vec3 &v)
 	{
 		return os << "vec3 {" << v.x << ", " << v.y << ", " << v.z << "}";
 	}
+
+	vec3 operator+(vec3 &v)
+	{
+		return {x + v.x, y + v.y, z + v.z};
+	}
+
+	vec3 operator-(vec3 &v)
+	{
+		return {x - v.x, y - v.y, z - v.z};
+	}
+
+	vec3 operator*(float k)
+	{
+		return {x * k, y * k, z * k};
+	}
+
+	vec3 operator/(float k)
+	{
+		return {x / k, y / k, z / k};
+	}
+
+	vec3 operator*(vec3 &v)
+	{
+		return {x * v.x, y * v.y, z * v.z};
+	}
+
+	vec3 operator/(vec3 &v)
+	{
+		return {x / v.x, y / v.y, z / v.z};
+	}
+
+	float lenght()
+	{
+		return sqrtf(x*x + y*y + z*z);
+	}
+
+	vec3 normalize()
+	{
+		float l = lenght();
+		return {x / l, y / l, z / l};
+	}
+
+	float dot_product(vec3 &v)
+	{
+		return x*v.x + y*v.y + z*v.z;
+	}
+
+	vec3 cross_product(vec3 &v)
+	{
+		return {
+			y*v.z - z*v.y,
+			z*v.x - x*v.z,
+			x*v.y - y*v.x,
+		};
+	}
 };
 
 struct mat4 {
 	float m[4][4] = {};
-};
 
-vec3 multiply_matrix(vec3 &v, mat4 &m)
-{
-	vec3 _v = {
-		.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0] + m.m[3][0],
-		.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1] + m.m[3][1],
-		.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2] + m.m[3][2],
-	};
-
-	float w = v.x * m.m[0][3] + v.y * m.m[1][3] + v.z * m.m[2][3] + m.m[3][3];
-
-	if (w != 0)
+	vec3 operator*(vec3 &v)
 	{
-		_v.x /= w;
-		_v.y /= w;
-		_v.z /= w;
+		return {
+			.x = v.x * m[0][0] + v.y * m[1][0] + v.z * m[2][0] + v.w * m[3][0],
+			.y = v.x * m[0][1] + v.y * m[1][1] + v.z * m[2][1] + v.w * m[3][1],
+			.z = v.x * m[0][2] + v.y * m[1][2] + v.z * m[2][2] + v.w * m[3][2],
+			.w = v.x * m[0][3] + v.y * m[1][3] + v.z * m[2][3] + v.w * m[3][3],
+		};
 	}
 
-	return _v;
-}
+	mat4 operator*(mat4 &m2)
+	{
+		mat4 mat;
+		for_range(i, 0, 4)
+		{
+			for_range(j, 0, 4)
+			{
+				mat.m[j][i] = m[j][0] * m2.m[0][i] + m[j][1] * m2.m[1][i] + m[j][2] * m2.m[2][i] + m[j][3] * m2.m[3][i];
+			}
+		}
+
+		return mat;
+	}
+
+	static mat4 identity()
+	{
+		mat4 mat;
+		mat.m[0][0] = 1.0f;
+		mat.m[1][1] = 1.0f;
+		mat.m[2][2] = 1.0f;
+		mat.m[3][3] = 1.0f;
+		return mat;
+	}
+
+	static mat4 rotation_x(float angle)
+	{
+		mat4 mat;
+		mat.m[0][0] = 1.0f;
+		mat.m[1][1] = cosf(angle);
+		mat.m[1][2] = sinf(angle);
+		mat.m[2][1] = -sinf(angle);
+		mat.m[2][2] = cosf(angle);
+		mat.m[3][3] = 1.0f;
+		return mat;
+	}
+
+	static mat4 rotation_y(float angle)
+	{
+		mat4 mat;
+		mat.m[0][0] = cosf(angle);
+		mat.m[0][1] = sinf(angle);
+		mat.m[1][0] = -sinf(angle);
+		mat.m[1][1] = 1.0f;
+		mat.m[2][2] = cosf(angle);
+		mat.m[3][3] = 1.0f;
+		return mat;
+	}
+
+	static mat4 rotation_z(float angle)
+	{
+		mat4 mat;
+		mat.m[0][0] = cosf(angle);
+		mat.m[0][1] = sinf(angle);
+		mat.m[1][0] = -sinf(angle);
+		mat.m[1][1] = cosf(angle);
+		mat.m[2][2] = 1.0f;
+		mat.m[3][3] = 1.0f;
+		return mat;
+	}
+
+	static mat4 translation(float x, float y, float z)
+	{
+		mat4 mat;
+		mat.m[0][0] = 1.0f;
+		mat.m[1][1] = 1.0f;
+		mat.m[2][2] = 1.0f;
+		mat.m[3][3] = 1.0f;
+		mat.m[3][0] = x;
+		mat.m[3][1] = y;
+		mat.m[3][2] = z;
+		return mat;
+	}
+
+	static mat4 projection(float fov, float aspect_ratio, float near, float far)
+	{
+		float fov_rad = 1.0f / tanf(rad(fov * 0.5f));
+		mat4 mat;
+		mat.m[0][0] = aspect_ratio * fov_rad;
+		mat.m[1][1] = fov_rad;
+		mat.m[2][2] = far / (far - near);
+		mat.m[2][3] = 1.0f;
+		mat.m[3][2] = (-far * near) / (far - near);
+		return mat;
+	}
+};
 
 struct triangle {
 	vec3 vs[3] = {};
@@ -211,98 +345,63 @@ struct mesh {
 	}
 };
 
-float rad(float angle)
-{
-	const float PI = 3.14159265;
-	return angle * PI / 180.0f;
-}
-
 class  GlState {
 public:
-	GlState(mesh &mesh, float offset = 8) : loaded_mesh(mesh), offset(offset)
+	GlState(mesh &mesh) : loaded_mesh(mesh)
 	{
-		proj_matrix.m[0][0] = aspect_ratio * fov_rad;
-		proj_matrix.m[1][1] = fov_rad;
-		proj_matrix.m[2][2] = far / (far - near);
-		proj_matrix.m[2][3] = 1;
-		proj_matrix.m[3][2] = (-far * near) / (far - near);
+		proj_matrix = mat4::projection(fov, aspect_ratio, near, far);
 	}
 
 	void update(SDL_Renderer *renderer, float delta)
 	{
 		// delta ms -> s
 		angle += delta / 1000.0f;
-
 		//std::cout << "delta = " << delta << ", angle = " << angle << std::endl;
 
-		mat4 rot_z{};
-		rot_z.m[0][0] = cosf(angle);
-		rot_z.m[0][1] = sinf(angle);
-		rot_z.m[1][0] = -sinf(angle);
-		rot_z.m[1][1] = cosf(angle);
-		rot_z.m[2][2] = 1;
-		rot_z.m[3][3] = 1;
+		auto mat_rot_x = mat4::rotation_x(angle);
+		auto mat_rot_z = mat4::rotation_z(angle * 0.5f);
 
-		mat4 rot_x{};
-		rot_x.m[0][0] = 1;
-		rot_x.m[1][1] = cosf(angle * 0.5f);
-		rot_x.m[1][2] = sinf(angle * 0.5f);
-		rot_x.m[2][1] = -sinf(angle * 0.5f);
-		rot_x.m[2][2] = cosf(angle * 0.5f);
-		rot_x.m[3][3] = 1;
+		auto mat_trans = mat4::translation(0.0f, 0.0f, 16.0f);
 
-		vector<triangle> raster_vec{};
+		auto mat_world = mat_rot_z * mat_rot_x;
+		mat_world = mat_world * mat_trans;
 
+		vector<triangle> raster_vec;
 		for (auto &t : loaded_mesh.ts)
 		{
-			triangle rot1_t;
-			for_range(i, 0, 3) rot1_t.vs[i] = multiply_matrix(t.vs[i], rot_z);
+			triangle trans_t;
+			for_range(i, 0, 3) trans_t.vs[i] = mat_world * t.vs[i];
 
-			triangle rot2_t;
-			for_range(i, 0, 3) rot2_t.vs[i] = multiply_matrix(rot1_t.vs[i], rot_x);
+			auto line1 = trans_t.vs[1] - trans_t.vs[0];
+			auto line2 = trans_t.vs[2] - trans_t.vs[0];
 
-			triangle trans_t = rot2_t;
-			for_range(i, 0, 3) trans_t.vs[i].z += offset;
+			auto normal = line1.cross_product(line2);
+			normal = normal.normalize();
 
-			vec3 normal, line1, line2;
-			line1.x = trans_t.vs[1].x - trans_t.vs[0].x;
-			line1.y = trans_t.vs[1].y - trans_t.vs[0].y;
-			line1.z = trans_t.vs[1].z - trans_t.vs[0].z;
-
-			line2.x = trans_t.vs[2].x - trans_t.vs[0].x;
-			line2.y = trans_t.vs[2].y - trans_t.vs[0].y;
-			line2.z = trans_t.vs[2].z - trans_t.vs[0].z;
-
-			normal.x = line1.y * line2.z - line1.z * line2.y;
-			normal.y = line1.z * line2.x - line1.x * line2.z;
-			normal.z = line1.x * line2.y - line1.y * line2.x;
-
-			float l = distance(normal.x, normal.y, normal.z);
-			normal.x /= l;
-			normal.y /= l;
-			normal.z /= l;
-
-			if (normal.x * (trans_t.vs[0].x - camera.x) +
-				normal.y * (trans_t.vs[0].y - camera.y) +
-				normal.z * (trans_t.vs[0].z - camera.z) < 0)
+			auto camera_ray = trans_t.vs[0] - camera;
+			if (normal.dot_product(camera_ray) < 0.0f)
 			{
 				vec3 light = {0, 0, -1};
-				float l = distance(light.x, light.y, light.z);
-				light.x /= l;
-				light.y /= l;
-				light.z /= l;
+				light = light.normalize();
 
-				float light_dp = normal.x * light.x + normal.y * light.y + normal.z * light.z;
-				int color = 255 * light_dp;
+				float light_dp = max(0.1f, light.dot_product(normal));
+				int greyscale = 255 * light_dp;
 
 				triangle proj_t;
-				proj_t.color = color;
-				for_range(i, 0, 3) proj_t.vs[i] = multiply_matrix(trans_t.vs[i], proj_matrix);
+				proj_t.color = greyscale;
 
 				for_range(i, 0, 3)
 				{
-					proj_t.vs[i].x = (proj_t.vs[i].x + 1) * 0.5f * WIDTH;
-					proj_t.vs[i].y = (proj_t.vs[i].y + 1) * 0.5f * HEIGHT;
+					proj_t.vs[i] = proj_matrix * trans_t.vs[i];
+					proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
+				}
+
+				vec3 offset = {1, 1, 0};
+				for_range(i, 0, 3)
+				{
+					proj_t.vs[i] = proj_t.vs[i] + offset;
+					proj_t.vs[i].x *= 0.5f * (float)WIDTH;
+					proj_t.vs[i].y *= 0.5f * (float)HEIGHT;
 				}
 
 				raster_vec.push_back(proj_t);
@@ -326,19 +425,16 @@ public:
 	}
 
 private:
-	mesh loaded_mesh{};
-	mat4 proj_matrix{};
+	mesh loaded_mesh;
+	mat4 proj_matrix;
 
-	vec3 camera{};
+	vec3 camera;
 	float near = 0.1;
 	float far = 1000;
-	float angle = 0;
-
 	float fov = 90;
-	float fov_rad = 1.0f / tanf(rad(fov * 0.5f));
 
 	float aspect_ratio = (float)HEIGHT / (float)WIDTH;
-	float offset;
+	float angle = 0;
 };
 
 int main(int argc, const char **argv)
