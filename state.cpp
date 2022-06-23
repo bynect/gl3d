@@ -16,7 +16,7 @@ void GlState::update(GlRender &render, float delta)
 	auto mat_rot_x = mat4::rotation_x(angle);
 
 	auto mat_trans = mat4::translation(0.0f, 0.0f, 5.0f);
-	auto mat_world = mat_rot_z * mat_rot_x * mat_trans;
+	auto mat_world = (mat_rot_z * mat_rot_x) * mat_trans;
 
 	vec3 up_dir = {0, 1, 0};
 	vec3 target_dir = {0, 0, 1};
@@ -43,7 +43,7 @@ void GlState::update(GlRender &render, float delta)
 		auto camera_ray = trans_t.vs[0] - camera;
 		if (normal.dot_product(camera_ray) < 0.0f)
 		{
-			vec3 light = {0, 1, -1};
+			vec3 light = {0.0f, 1.0f, -1.0f};
 			light = light.normalize();
 
 			float light_dp = std::max(0.1f, light.dot_product(normal));
@@ -63,7 +63,10 @@ void GlState::update(GlRender &render, float delta)
 				for_range(i, 0, 3)
 				{
 					proj_t.vs[i] = mat_proj * clipped[n].vs[i];
-					if (proj_t.vs[i].w != 0) proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
+					proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
+
+					proj_t.vs[i].x *= -1.0f;
+					proj_t.vs[i].y *= -1.0f;
 				}
 
 				vec3 offset = {1, 1, 0};
