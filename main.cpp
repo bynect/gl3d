@@ -75,29 +75,108 @@ float cross_product(vec3 a, vec3 b)
 	return a.x * b.y - b.x * a.y;
 }
 
+void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
+{
+	float slope0 = (t.vs[1].x - t.vs[0].x) / (t.vs[1].y - t.vs[0].y);
+	float slope1 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
+
+	const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
+	const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
+
+	for (int y = y_min; y < y_max; y++)
+	{
+		const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
+		const float px1 = slope1 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
+
+		const int x_min = (int)ceilf(px0 - 0.5f);
+		const int x_max = (int)ceilf(px1 - 0.5f);
+
+		for (int x = x_min; x < x_max; x++)
+		{
+			SDL_RenderDrawPoint(renderer, x, y);
+		}
+	}
+}
+
+void render_triangle_top_flat(SDL_Renderer *renderer, triangle t)
+{
+	float slope0 = (t.vs[2].x - t.vs[0].x) / (t.vs[2].y - t.vs[0].y);
+	float slope1 = (t.vs[2].x - t.vs[1].x) / (t.vs[2].y - t.vs[1].y);
+
+	const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
+	const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
+
+	for (int y = y_min; y < y_max; y++)
+	{
+		const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
+		const float px1 = slope1 * ((float)y + 0.5f - t.vs[1].y) + t.vs[1].x;
+
+		const int x_min = (int)ceilf(px0 - 0.5f);
+		const int x_max = (int)ceilf(px1 - 0.5f);
+
+		for (int x = x_min; x < x_max; x++)
+		{
+			SDL_RenderDrawPoint(renderer, x, y);
+		}
+	}
+}
+
+// triangle scanline rasterization with top-left rule
 void render_triangle_filled(SDL_Renderer *renderer, triangle t)
 {
 	SDL_SetRenderDrawColor(renderer, t.color, t.color, t.color, SDL_ALPHA_OPAQUE);
 
-	int max_x = max(t.vs[0].x, max(t.vs[1].x, t.vs[2].x));
-	int min_x = min(t.vs[0].x, min(t.vs[1].x, t.vs[2].x));
-	int max_y = max(t.vs[0].y, max(t.vs[1].y, t.vs[2].y));
-	int min_y = min(t.vs[0].y, min(t.vs[1].y, t.vs[2].y));
+	if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
+	if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
+	if (t.vs[2].y < t.vs[1].y) swap(t.vs[2], t.vs[1]);
 
-	vec3 v1 = {t.vs[1].x - t.vs[0].x, t.vs[1].y - t.vs[0].y, 0};
-	vec3 v2 = {t.vs[2].x - t.vs[0].x, t.vs[2].y - t.vs[0].y, 0};
-
-	for (int x = min_x; x <= max_x; x++)
+	if (t.vs[1].y == t.vs[2].y)
 	{
-		for (int y = min_y; y <= max_y; y++)
+		if (t.vs[2].x < t.vs[1].x) swap(t.vs[2], t.vs[1]);
+		render_triangle_bottom_flat(renderer, t);
+	}
+	else if (t.vs[0].y == t.vs[1].y)
+	{
+		if (t.vs[1].x < t.vs[0].x) swap(t.vs[0], t.vs[1]);
+		render_triangle_top_flat(renderer, t);
+	}
+	else
+	{
+		const float split = (t.vs[1].y - t.vs[0].y) / (t.vs[2].y - t.vs[0].y);
+		const vec3 vi = {
+			.x = t.vs[0].x + (t.vs[2].x - t.vs[0].x) * split,
+			.y = t.vs[0].y + (t.vs[2].y - t.vs[0].y) * split,
+			.z = 0,
+		};
+
+		triangle tmp1, tmp2;
+		tmp1.color = tmp2.color = t.color;
+
+		if (t.vs[1].x < vi.x)
 		{
-			vec3 v3 = {x - t.vs[0].x, y - t.vs[0].y, 0};
+			// major right
+			tmp1.vs[0] = t.vs[0];
+			tmp1.vs[1] = t.vs[1];
+			tmp1.vs[2] = vi;
 
-			float a = (float)cross_product(v3, v2) / cross_product(v1, v2);
-			float b = (float)cross_product(v1, v3) / cross_product(v1, v2);
-
-			if ((a >= 0) && (b >= 0) && (a + b <= 1)) SDL_RenderDrawPoint(renderer, x, y);
+			tmp2.vs[0] = t.vs[1];
+			tmp2.vs[1] = vi;
+			tmp2.vs[2] = t.vs[2];
 		}
+		else
+		{
+			// major left
+			tmp1.vs[0] = t.vs[0];
+			tmp1.vs[1] = vi;
+			tmp1.vs[2] = t.vs[1];
+
+			tmp2.vs[0] = vi;
+			tmp2.vs[1] = t.vs[1];
+			tmp2.vs[2] = t.vs[2];
+		}
+
+		render_triangle_bottom_flat(renderer, tmp1);
+		render_triangle_top_flat(renderer, tmp2);
 	}
 }
 
@@ -246,7 +325,8 @@ public:
 		for (auto &t : raster_vec)
 		{
 			render_triangle_filled(renderer, t);
-			//render_triangle(renderer, proj_t);
+			SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+			render_triangle(renderer, t);
 		}
 	}
 
