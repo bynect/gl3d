@@ -6,7 +6,7 @@
 struct vec3 {
 	float x = 0, y = 0, z = 0;
 	float w = 1; // dummy
-				 //
+
 	friend std::ostream& operator<<(std::ostream &os, vec3 &v)
 	{
 		return os << "vec3 {" << v.x << ", " << v.y << ", " << v.z << "}";
@@ -61,9 +61,9 @@ struct vec3 {
 	vec3 cross_product(vec3 &v)
 	{
 		return {
-			y*v.z - z*v.y,
-			z*v.x - x*v.z,
-			x*v.y - y*v.x,
+			.x = y*v.z - z*v.y,
+			.y = z*v.x - x*v.z,
+			.z = x*v.y - y*v.x,
 		};
 	}
 };

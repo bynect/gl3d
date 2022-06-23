@@ -18,7 +18,6 @@ bool mesh::load_from_file(const char *path)
 		s << buf;
 
 		char c;
-
 		if (buf[0] == 'v')
 		{
 			vec3 v;
