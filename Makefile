@@ -2,14 +2,14 @@ CXX=g++
 CXXFLAGS=-g3
 CXXLIBS=-lSDL2
 
-SRC=main.cpp
+SRC=$(wildcard *.cpp)
 OBJ=$(SRC:.cpp=.o)
 BIN=gl3d.bin
 
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CXX) $(CXXLIBS) -o $@ $<
+	$(CXX) $(CXXLIBS) -o $@ $^
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
