@@ -233,14 +233,14 @@ struct mesh {
 
 class GlRender {
 public:
-	GlRender(SDL_Renderer *renderer, size_t batch_size = 1024) : renderer(renderer)
+	GlRender(SDL_Renderer *renderer, size_t batch_size = 16384) : renderer(renderer)
 	{
 		points.reserve(batch_size);
 	}
 
 	void triangle_frame(triangle t)
 	{
-		SDL_SetRenderDrawColor(renderer, t.color.r, t.color.g, t.color.b, t.color.a);
+		color_set(t.color);
 
 		SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
 		SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
@@ -250,7 +250,7 @@ public:
 	// triangle scanline rasterization with top-left rule
 	void triangle_filled(triangle t)
 	{
-		SDL_SetRenderDrawColor(renderer, t.color.r, t.color.g, t.color.b, t.color.a);
+		color_set(t.color);
 
 		if (t.vs[1].y < t.vs[0].y) swap(t.vs[1], t.vs[0]);
 		if (t.vs[2].y < t.vs[0].y) swap(t.vs[2], t.vs[0]);
@@ -306,9 +306,38 @@ public:
 		}
 	}
 
+	void color_set(SDL_Color color)
+	{
+		SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+	}
+
+	void clear(SDL_Color color)
+	{
+		color_set(color);
+		SDL_RenderClear(renderer);
+	}
+
+	void present()
+	{
+		SDL_RenderPresent(renderer);
+	}
+
 private:
 	SDL_Renderer *renderer;
 	vector<SDL_Point> points;
+
+	void batch_add(int x, int y)
+	{
+		if (points.size() == points.capacity()) batch_flush();
+		points.push_back({x, y});
+	}
+
+	void batch_flush()
+	{
+	//	cout << "points " << points.size() << " of " << points.capacity() << endl;
+		SDL_RenderDrawPoints(renderer, points.data(), points.size());
+		points.clear();
+	}
 
 	void triangle_bottom_flat(triangle t)
 	{
@@ -326,10 +355,9 @@ private:
 			const int x_min = (int)ceilf(px0 - 0.5f);
 			const int x_max = (int)ceilf(px1 - 0.5f);
 
-			for (int x = x_min; x < x_max; x++) points.push_back({x, y});
-			SDL_RenderDrawPoints(renderer, points.data(), points.size());
-			points.clear();
+			for (int x = x_min; x < x_max; x++) batch_add(x, y);
 		}
+		batch_flush();
 	}
 
 	void triangle_top_flat(triangle t)
@@ -348,10 +376,9 @@ private:
 			const int x_min = (int)ceilf(px0 - 0.5f);
 			const int x_max = (int)ceilf(px1 - 0.5f);
 
-			for (int x = x_min; x < x_max; x++) points.push_back({x, y});
-			SDL_RenderDrawPoints(renderer, points.data(), points.size());
-			points.clear();
+			for (int x = x_min; x < x_max; x++) batch_add(x, y);
 		}
+		batch_flush();
 	}
 };
 
@@ -490,11 +517,9 @@ int main(int argc, const char **argv)
 
 		if (delta > frame_delta)
 		{
-			SDL_SetRenderDrawColor(renderer, 18, 18, 18, 255);
-			SDL_RenderClear(renderer);
-
+			render.clear({18, 18, 18, 255});
 			state.update(render, delta);
-			SDL_RenderPresent(renderer);
+			render.present();
 
 			last_time = current_time;
 		}
