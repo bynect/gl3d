@@ -63,16 +63,11 @@ struct triangle {
 	}
 };
 
-void render_triangle(SDL_Renderer *renderer, triangle t)
+void render_triangle_frame(SDL_Renderer *renderer, triangle t)
 {
 	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
 	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
 	SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
-}
-
-float cross_product(vec3 a, vec3 b)
-{
-	return a.x * b.y - b.x * a.y;
 }
 
 void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
@@ -83,6 +78,7 @@ void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
 	const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
 	const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
 
+	vector<SDL_Point> points;
 	for (int y = y_min; y < y_max; y++)
 	{
 		const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
@@ -91,10 +87,9 @@ void render_triangle_bottom_flat(SDL_Renderer *renderer, triangle t)
 		const int x_min = (int)ceilf(px0 - 0.5f);
 		const int x_max = (int)ceilf(px1 - 0.5f);
 
-		for (int x = x_min; x < x_max; x++)
-		{
-			SDL_RenderDrawPoint(renderer, x, y);
-		}
+		for (int x = x_min; x < x_max; x++) points.push_back({x, y});
+		SDL_RenderDrawPoints(renderer, points.data(), points.size());
+		points.clear();
 	}
 }
 
@@ -106,6 +101,7 @@ void render_triangle_top_flat(SDL_Renderer *renderer, triangle t)
 	const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
 	const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
 
+	vector<SDL_Point> points;
 	for (int y = y_min; y < y_max; y++)
 	{
 		const float px0 = slope0 * ((float)y + 0.5f - t.vs[0].y) + t.vs[0].x;
@@ -114,10 +110,9 @@ void render_triangle_top_flat(SDL_Renderer *renderer, triangle t)
 		const int x_min = (int)ceilf(px0 - 0.5f);
 		const int x_max = (int)ceilf(px1 - 0.5f);
 
-		for (int x = x_min; x < x_max; x++)
-		{
-			SDL_RenderDrawPoint(renderer, x, y);
-		}
+		for (int x = x_min; x < x_max; x++) points.push_back({x, y});
+		SDL_RenderDrawPoints(renderer, points.data(), points.size());
+		points.clear();
 	}
 }
 
@@ -325,8 +320,8 @@ public:
 		for (auto &t : raster_vec)
 		{
 			render_triangle_filled(renderer, t);
-			SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
-			render_triangle(renderer, t);
+			//SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+			//render_triangle_frame(renderer, t);
 		}
 	}
 
