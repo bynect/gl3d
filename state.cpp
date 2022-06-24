@@ -48,7 +48,7 @@ void GlState::update(GlRender &render, float delta)
 			light = light.normalize();
 
 			float light_dp = std::max(0.1f, normal.dot_product(light));
-			uint8_t greyscale = 255 * light_dp;
+			uint8_t greyscale = std::min(255.0f, (light_dp + 0.1f) * 255);
 
 			triangle view_t;
 			for_range(i, 0, 3) view_t.vs[i] = mat_view * trans_t.vs[i];
@@ -173,7 +173,8 @@ void GlState::keypress(SDL_KeyboardEvent &event, float delta)
 			break;
 
 		case SDLK_LEFT:
-			camera.x -= camera_vel * delta;
+			// x is inverted
+			camera.x += camera_vel * delta;
 			break;
 
 		case SDLK_DOWN:
@@ -181,7 +182,8 @@ void GlState::keypress(SDL_KeyboardEvent &event, float delta)
 			break;
 
 		case SDLK_RIGHT:
-			camera.x += camera_vel * delta;
+			// x is inverted
+			camera.x -= camera_vel * delta;
 			break;
 
 		default:
