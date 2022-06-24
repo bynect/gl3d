@@ -44,7 +44,8 @@ void GlState::update(GlRender &render, float delta)
 		auto camera_ray = trans_t.vs[0] - camera;
 		if (normal.dot_product(camera_ray) < 0.0f)
 		{
-			vec3 light = {0.0f, 1.0f, -1.0f};
+			// dynamic light position
+			vec3 light = camera_ray * -1;
 			light = light.normalize();
 
 			float light_dp = std::max(0.1f, normal.dot_product(light));
