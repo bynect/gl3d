@@ -5,6 +5,7 @@
 
 #include "render.hpp"
 #include "state.hpp"
+#include "vec3.hpp"
 
 void GlState::update(GlRender &render, float delta)
 {
@@ -46,7 +47,7 @@ void GlState::update(GlRender &render, float delta)
 			vec3 light = {0.0f, 1.0f, -1.0f};
 			light = light.normalize();
 
-			float light_dp = std::max(0.1f, light.dot_product(normal));
+			float light_dp = std::max(0.1f, normal.dot_product(light));
 			uint8_t greyscale = 255 * light_dp;
 
 			triangle view_t;

@@ -58,12 +58,12 @@ struct vec3 {
 		return x*v.x + y*v.y + z*v.z;
 	}
 
-	vec3 cross_product(vec3 &v)
+	vec3 cross_product(vec3 &v2)
 	{
-		return {
-			.x = y*v.z - z*v.y,
-			.y = z*v.x - x*v.z,
-			.z = x*v.y - y*v.x,
-		};
+		vec3 v;
+		v.x = y * v2.z - z * v2.y;
+		v.y = z * v2.x - x * v2.z;
+		v.z = x * v2.y - y * v2.x;
+		return v;
 	}
 };
