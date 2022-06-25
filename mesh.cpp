@@ -1,8 +1,10 @@
+#include <cctype>
 #include <fstream>
 #include <sstream>
 #include <cassert>
 
 #include "mesh.hpp"
+#include "triangle.hpp"
 
 bool mesh::load_from_file(const char *path, bool with_texture)
 {
@@ -47,29 +49,92 @@ bool mesh::load_from_file(const char *path, bool with_texture)
 			}
 			else
 			{
-				s >> c;
-				std::string tokens[6];
-				int token_n = -1;
+				int face_v[3] = {};
+				int face_vn = 0;
 
-				while (!s.eof())
+				int face_t[3] = {};
+				int face_tn = 0;
+
+				// Currently ignored
+				int normal;
+
+				enum {
+					PARSE_START,
+					PARSE_V,
+					PARSE_T,
+					PARSE_N,
+				} state = PARSE_START;
+
+				bool done = false;
+				while (!s.eof() && !done)
 				{
 					char c = s.get();
-					if (c == ' ' || c == '/') token_n++;
-					else tokens[token_n].append(1, c);
+
+					switch (state)
+					{
+						case PARSE_START:
+							assert(c == 'f');
+							c = s.get();
+							assert(c == ' ');
+							state = PARSE_V;
+							break;
+
+						case PARSE_V:
+							assert(std::isdigit(c));
+							s.seekg((int)s.tellg() - 1);
+							s >> face_v[face_vn++];
+
+							c = s.get();
+							assert(c == '/');
+							state = PARSE_T;
+							break;
+
+						case PARSE_T:
+							if (c == '/') state = PARSE_N;
+							else
+							{
+								assert(std::isdigit(c));
+								s.seekg((int)s.tellg() - 1);
+								s >> face_t[face_tn++];
+
+								if (face_tn == 3)
+								{
+									done = true;
+									break;
+								}
+
+								c = s.get();
+								assert(c == '/' || c == ' ');
+								state = c == ' ' ? PARSE_V : PARSE_N;
+							}
+							break;
+
+						case PARSE_N:
+							assert(std::isdigit(c));
+							s.seekg((int)s.tellg() - 1);
+							s >> normal;
+
+							if (face_vn == 3)
+							{
+								done = true;
+								break;
+							}
+
+							c = s.get();
+							assert(c == ' ');
+							state = PARSE_V;
+							break;
+
+						default:
+							assert(false && "Unreachable");
+					}
 				}
 
-				tokens[token_n].pop_back();
-
-				triangle t = {
-					verts[std::stoi(tokens[0]) - 1],
-					verts[std::stoi(tokens[2]) - 1],
-					verts[std::stoi(tokens[4]) - 1],
-					textures[std::stoi(tokens[1]) - 1],
-					textures[std::stoi(tokens[3]) - 1],
-					textures[std::stoi(tokens[5]) - 1]
-				};
-
-				ts.push_back(t);
+				assert(face_tn == 3 && face_tn == 3);
+				ts.push_back({
+					verts[face_v[0] - 1], verts[face_v[1] - 1], verts[face_v[2] - 1],
+					textures[face_t[0] - 1], textures[face_t[1] - 1], textures[face_t[2] - 1],
+				});
 			}
 		}
 	}

@@ -21,9 +21,6 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 
-	SDL_Window *window = SDL_CreateWindow("gl3d", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, 0);
-	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-
 	assert(argc >= 2);
 	bool with_texture = argc > 2;
 
@@ -32,6 +29,9 @@ int main(int argc, const char **argv)
 
 	mesh mesh;
 	assert(mesh.load_from_file(argv[1], with_texture));
+
+	SDL_Window *window = SDL_CreateWindow("gl3d", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, 0);
+	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
 	GlRender render(renderer);
 	GlState state(mesh, with_texture ? &texture : nullptr);
