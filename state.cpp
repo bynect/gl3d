@@ -10,7 +10,7 @@
 void GlState::update(GlRender &render, float delta)
 {
 	// delta ms -> s
-	//angle += delta / 1000.0f;
+	angle += angle_factor * (delta / 1000.0f);
 	//std::cout << "delta = " << delta << ", angle = " << angle << std::endl;
 
 	auto mat_rot_z = mat4::rotation_z(angle * 0.5f);
@@ -54,6 +54,9 @@ void GlState::update(GlRender &render, float delta)
 			triangle view_t;
 			for_range(i, 0, 3) view_t.vs[i] = mat_view * trans_t.vs[i];
 
+			// transfer texture information
+			for_range(i, 0, 3) view_t.ts[i] = t.ts[i];
+
 			triangle clipped[2];
 			int clipped_n = triangle::clip_plane({0.0f, 0.0f, near_plane}, {0.0f, 0.0f, 1.0f}, view_t, clipped[0], clipped[1]);
 
@@ -65,8 +68,18 @@ void GlState::update(GlRender &render, float delta)
 				for_range(i, 0, 3)
 				{
 					proj_t.vs[i] = mat_proj * clipped[n].vs[i];
-					proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
+					proj_t.ts[i] = clipped[n].ts[i];
 
+					proj_t.ts[i].u /= proj_t.vs[i].w;
+					proj_t.ts[i].v /= proj_t.vs[i].w;
+					proj_t.ts[i].w = 1.0f / proj_t.vs[i].w;
+
+					proj_t.vs[i] = proj_t.vs[i] / proj_t.vs[i].w;
+				}
+
+				for_range(i, 0, 3)
+				{
+					// Invert axis
 					proj_t.vs[i].x *= -1.0f;
 					proj_t.vs[i].y *= -1.0f;
 				}
@@ -138,7 +151,9 @@ void GlState::update(GlRender &render, float delta)
 
 		for (auto &t : triangles)
 		{
-			render.triangle_filled(t);
+			if (loaded_texture != nullptr) render.triangle_textured(t, *loaded_texture);
+			else render.triangle_filled(t);
+
 			t.color = {0, 255, 0};
 			render.triangle_frame(t);
 		}

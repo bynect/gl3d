@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 #include "state.hpp"
 #include "render.hpp"
@@ -8,22 +9,32 @@
 
 int main(int argc, const char **argv)
 {
-	mesh mesh;
-
-	assert(argc == 2);
-	assert(mesh.load_from_file(argv[1]));
-
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_TIMER) != 0)
 	{
 		std::cerr << "Unable to initialize SDL2: " << SDL_GetError() << std::endl;
 		return 1;
 	}
 
+	if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != IMG_INIT_PNG)
+	{
+		std::cerr << "Unable to initialize SDL2_image: " << IMG_GetError() << std::endl;
+		return 1;
+	}
+
 	SDL_Window *window = SDL_CreateWindow("gl3d", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, 0);
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-	GlState state(mesh);
+	assert(argc >= 2);
+	bool with_texture = argc > 2;
+
+	texture texture;
+	if (with_texture) assert(texture.load_from_file(argv[2]));
+
+	mesh mesh;
+	assert(mesh.load_from_file(argv[1], with_texture));
+
 	GlRender render(renderer);
+	GlState state(mesh, with_texture ? &texture : nullptr);
 	bool running = true;
 
 	const float freq = SDL_GetPerformanceFrequency();
@@ -66,6 +77,8 @@ int main(int argc, const char **argv)
 
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
+
+	IMG_Quit();
 	SDL_Quit();
 
 	return 0;
