@@ -1,9 +1,13 @@
 #pragma once
 
 #include <SDL2/SDL.h>
+#include <cstring>
 #include <vector>
+#include <array>
 
+#include "base.hpp"
 #include "triangle.hpp"
+#include "texture.hpp"
 #include "vec3.hpp"
 
 class GlRender
@@ -16,28 +20,34 @@ public:
 
 	void line(vec3 a, vec3 b, SDL_Color color)
 	{
-		color_set(color);
-
+		set_color(color);
 		SDL_RenderDrawLineF(renderer, a.x, a.y, b.x, b.y);
 	}
 
 	void triangle_frame(triangle t);
 
+	void triangle_textured(triangle t, const texture &texture);
+
 	// triangle scanline rasterization with top-left rule
 	void triangle_filled(triangle t);
 
-	void color_set(SDL_Color color)
+	void set_color(SDL_Color color)
 	{
 		SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 	}
 
 	void clear(SDL_Color color)
 	{
-		color_set(color);
+		set_color(color);
 		SDL_RenderClear(renderer);
 	}
 
-	void present()
+	void start_frame()
+	{
+		std::memset(depth_buffer.data(), 0, depth_buffer.size() * sizeof(float));
+	}
+
+	void end_frame()
 	{
 		SDL_RenderPresent(renderer);
 	}
@@ -45,6 +55,7 @@ public:
 private:
 	SDL_Renderer *renderer;
 	std::vector<SDL_Point> points;
+	std::array<float, WIDTH * HEIGHT> depth_buffer;
 
 	void batch_add(int x, int y)
 	{

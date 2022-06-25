@@ -4,10 +4,12 @@
 #include <SDL2/SDL.h>
 
 #include "vec3.hpp"
+#include "vec2.hpp"
 #include "base.hpp"
 
 struct triangle {
 	vec3 vs[3] = {};
+	vec2 ts[3] = {};
 	SDL_Color color = {255, 255, 255, SDL_ALPHA_OPAQUE};
 
 	friend std::ostream& operator<<(std::ostream &os, triangle &t)

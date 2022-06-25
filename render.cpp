@@ -1,18 +1,205 @@
+#include <iostream>
+
 #include "render.hpp"
+#include "texture.hpp"
+#include "triangle.hpp"
 
 void GlRender::triangle_frame(triangle t)
 {
-	color_set(t.color);
+	set_color(t.color);
 
 	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[1].x, t.vs[1].y);
 	SDL_RenderDrawLineF(renderer, t.vs[0].x, t.vs[0].y, t.vs[2].x, t.vs[2].y);
 	SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
 }
 
+void GlRender::triangle_textured(triangle t, const texture &texture)
+{
+	if (t.vs[1].y < t.vs[0].y)
+	{
+		std::swap(t.vs[1], t.vs[0]);
+		std::swap(t.ts[1], t.ts[0]);
+	}
+
+	if (t.vs[2].y < t.vs[0].y)
+	{
+		std::swap(t.vs[0], t.vs[2]);
+		std::swap(t.ts[0], t.ts[2]);
+	}
+
+	if (t.vs[2].y < t.vs[1].y)
+	{
+		std::swap(t.vs[1], t.vs[2]);
+		std::swap(t.ts[1], t.ts[2]);
+	}
+
+	float dy1 = t.vs[1].y - t.vs[0].y;
+	float dx1 = t.vs[1].x - t.vs[0].x;
+
+	float dv1 = t.ts[1].v - t.ts[0].v;
+	float du1 = t.ts[1].u - t.ts[0].u;
+	float dw1 = t.ts[1].w - t.ts[0].w;
+
+	float dy2 = t.vs[2].y - t.vs[0].y;
+	float dx2 = t.vs[2].x - t.vs[0].x;
+
+	float dv2 = t.ts[2].v - t.ts[0].v;
+	float du2 = t.ts[2].u - t.ts[0].u;
+	float dw2 = t.ts[2].w - t.ts[0].w;
+
+	float du1_step = 0, dv1_step = 0;
+	float du2_step = 0, dv2_step = 0;
+	float dw1_step = 0, dw2_step = 0;
+
+	float slope0 = 0, slope1 = 0;
+	if (dy1) slope0 = dx1 / (float)fabs(dy1);
+	if (dy2) slope1 = dx2 / (float)fabs(dy2);
+
+	if (dy1) du1_step = du1 / (float)fabs(dy1);
+	if (dy1) dv1_step = dv1 / (float)fabs(dy1);
+	if (dy1) dw1_step = dw1 / (float)fabs(dy1);
+
+	if (dy2) du2_step = du2 / (float)fabs(dy2);
+	if (dy2) dv2_step = dv2 / (float)fabs(dy2);
+	if (dy2) dw2_step = dw2 / (float)fabs(dy2);
+
+	float t_u, t_v, t_w;
+	if (dy1)
+	{
+		const int y_min = (int)ceilf(t.vs[0].y - 0.5f);
+		const int y_max = (int)ceilf(t.vs[1].y - 0.5f);
+
+		for (int i = y_min; i < y_max; i++)
+		{
+			float ax = slope0 * ((float)i + 0.5f - t.vs[0].y) + t.vs[0].x;
+			float bx = slope1 * ((float)i + 0.5f - t.vs[0].y) + t.vs[0].x;
+
+			float t_su = t.ts[0].u + (float)(i - t.vs[0].y) * du1_step;
+			float t_sv = t.ts[0].v + (float)(i - t.vs[0].y) * dv1_step;
+			float t_sw = t.ts[0].w + (float)(i - t.vs[0].y) * dw1_step;
+
+			float t_eu = t.ts[0].u + (float)(i - t.vs[0].y) * du2_step;
+			float t_ev = t.ts[0].v + (float)(i - t.vs[0].y) * dv2_step;
+			float t_ew = t.ts[0].w + (float)(i - t.vs[0].y) * dw2_step;
+
+			if (ax > bx)
+			{
+				std::swap(ax, bx);
+				std::swap(t_su, t_eu);
+				std::swap(t_sv, t_ev);
+				std::swap(t_sw, t_ew);
+			}
+
+			t_u = t_su;
+			t_v = t_sv;
+			t_w = t_sw;
+
+			float tstep = 1.0f / ((float)(bx - ax));
+			float t = 0.0f;
+
+			const int x_min = (int)ceilf(ax - 0.5f);
+			const int x_max = (int)ceilf(bx - 0.5f);
+
+			for (int j = x_min; j < x_max; j++)
+			{
+				t_u = (1.0f - t) * t_su + t * t_eu;
+				t_v = (1.0f - t) * t_sv + t * t_ev;
+				t_w = (1.0f - t) * t_sw + t * t_ew;
+
+				if (t_w > depth_buffer[i * WIDTH + j])
+				{
+					uint8_t r, g, b;
+					float t_x = (t_u / t_w) * texture.get_width();
+					float t_y = (t_v / t_w) * texture.get_height();
+					texture.get_pixel(t_x, t_y, r, g, b);
+
+					set_color({r, g, b});
+					SDL_RenderDrawPoint(renderer, j, i);
+					depth_buffer[i * WIDTH + j] = t_w;
+				}
+				t += tstep;
+			}
+		}
+	}
+
+	dy1 = t.vs[2].y - t.vs[1].y;
+	dx1 = t.vs[2].x - t.vs[1].x;
+
+	dv1 = t.ts[2].v - t.ts[1].v;
+	du1 = t.ts[2].u - t.ts[1].u;
+	dw1 = t.ts[2].w - t.ts[1].w;
+
+	if (dy1) slope0 = dx1 / (float)fabs(dy1);
+	if (dy2) slope1 = dx2 / (float)fabs(dy2);
+
+	du1_step = 0, dv1_step = 0;
+	if (dy1) du1_step = du1 / (float)fabs(dy1);
+	if (dy1) dv1_step = dv1 / (float)fabs(dy1);
+	if (dy1) dw1_step = dw1 / (float)fabs(dy1);
+
+	if (dy1)
+	{
+		const int y_min = (int)ceilf(t.vs[1].y - 0.5f);
+		const int y_max = (int)ceilf(t.vs[2].y - 0.5f);
+
+		for (int i = y_min; i < y_max; i++)
+		{
+			float ax = slope0 * ((float)i + 0.5f - t.vs[1].y) + t.vs[1].x;
+			float bx = slope1 * ((float)i + 0.5f - t.vs[0].y) + t.vs[0].x;
+
+			float t_su = t.ts[1].u + (float)(i - t.vs[1].y) * du1_step;
+			float t_sv = t.ts[1].v + (float)(i - t.vs[1].y) * dv1_step;
+			float t_sw = t.ts[1].w + (float)(i - t.vs[1].y) * dw1_step;
+
+			float t_eu = t.ts[0].u + (float)(i - t.vs[0].y) * du2_step;
+			float t_ev = t.ts[0].v + (float)(i - t.vs[0].y) * dv2_step;
+			float t_ew = t.ts[0].w + (float)(i - t.vs[0].y) * dw2_step;
+
+			if (ax > bx)
+			{
+				std::swap(ax, bx);
+				std::swap(t_su, t_eu);
+				std::swap(t_sv, t_ev);
+				std::swap(t_sw, t_ew);
+			}
+
+			t_u = t_su;
+			t_v = t_sv;
+			t_w = t_sw;
+
+			float tstep = 1.0f / ((float)(bx - ax));
+			float t = 0.0f;
+
+			const int x_min = (int)ceilf(ax - 0.5f);
+			const int x_max = (int)ceilf(bx - 0.5f);
+
+			for (int j = x_min; j < x_max; j++)
+			{
+				t_u = (1.0f - t) * t_su + t * t_eu;
+				t_v = (1.0f - t) * t_sv + t * t_ev;
+				t_w = (1.0f - t) * t_sw + t * t_ew;
+
+				if (t_w > depth_buffer[i * WIDTH + j])
+				{
+					uint8_t r, g, b;
+					float t_x = (t_u / t_w) * texture.get_width();
+					float t_y = (t_v / t_w) * texture.get_height();
+					texture.get_pixel(t_x, t_y, r, g, b);
+
+					set_color({r, g, b});
+					SDL_RenderDrawPoint(renderer, j, i);
+					depth_buffer[i * WIDTH + j] = t_w;
+				}
+				t += tstep;
+			}
+		}
+	}
+}
+
 // triangle scanline rasterization with top-left rule
 void GlRender::triangle_filled(triangle t)
 {
-	color_set(t.color);
+	set_color(t.color);
 
 	if (t.vs[1].y < t.vs[0].y) std::swap(t.vs[1], t.vs[0]);
 	if (t.vs[2].y < t.vs[0].y) std::swap(t.vs[2], t.vs[0]);

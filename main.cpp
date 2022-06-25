@@ -55,9 +55,10 @@ int main(int argc, const char **argv)
 
 		if (delta > frame_delta)
 		{
+			render.start_frame();
 			render.clear({18, 18, 18, 255});
 			state.update(render, delta);
-			render.present();
+			render.end_frame();
 
 			last_time = current_time;
 		}
