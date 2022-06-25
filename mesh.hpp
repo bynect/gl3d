@@ -7,5 +7,5 @@
 struct mesh {
 	std::vector<triangle> ts;
 
-	bool load_from_file(const char *path);
+	bool load_from_file(const char *path, bool with_texture = false);
 };
