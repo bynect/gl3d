@@ -1,6 +1,6 @@
 CXX=g++
 CXXFLAGS=-g3
-CXXLIBS=-lSDL2
+CXXLIBS=-lSDL2 -lSDL2_image
 
 SRC=$(wildcard *.cpp)
 OBJ=$(SRC:.cpp=.o)
