@@ -9,12 +9,12 @@ public:
 
 	void get_pixel(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const;
 
-	int get_width() const
+	int width() const
 	{
 		return surface->w;
 	}
 
-	int get_height() const
+	int height() const
 	{
 		return surface->h;
 	}

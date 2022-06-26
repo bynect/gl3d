@@ -31,8 +31,9 @@ bool mesh::load_from_file(const char *path, bool with_texture)
 				vec2 t;
 				s >> c >> c >> t.u >> t.v;
 				textures.push_back(t);
+				texture_max = std::max(texture_max, std::max(t.u, t.v));
 			}
-			else
+			else if (buf[1] != 'n')
 			{
 				vec3 v;
 				s >> c >> v.x >> v.y >> v.z;
@@ -130,6 +131,7 @@ bool mesh::load_from_file(const char *path, bool with_texture)
 					}
 				}
 
+				// NOTE: vertex/texture index should start from 1
 				assert(face_tn == 3 && face_tn == 3);
 				ts.push_back({
 					verts[face_v[0] - 1], verts[face_v[1] - 1], verts[face_v[2] - 1],
