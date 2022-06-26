@@ -26,7 +26,7 @@ public:
 
 	void triangle_frame(triangle t);
 
-	void triangle_textured(triangle t, const texture &texture);
+	void triangle_textured(triangle t, const texture &texture, float texture_scale = 1.0f);
 
 	// triangle scanline rasterization with top-left rule
 	void triangle_filled(triangle t);

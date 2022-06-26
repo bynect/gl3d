@@ -98,12 +98,12 @@ void GlState::update(GlRender &render, float delta)
 		}
 	}
 
-	std::sort(raster_vec.begin(), raster_vec.end(), [](triangle &t1, triangle &t2)
-	{
-		float z1 = (t1.vs[0].z + t1.vs[1].z + t1.vs[2].z) / 3.0f;
-		float z2 = (t2.vs[0].z + t2.vs[1].z + t2.vs[2].z) / 3.0f;
-		return z1 > z2;
-	});
+	//std::sort(raster_vec.begin(), raster_vec.end(), [](triangle &t1, triangle &t2)
+	//{
+	//	float z1 = (t1.vs[0].z + t1.vs[1].z + t1.vs[2].z) / 3.0f;
+	//	float z2 = (t2.vs[0].z + t2.vs[1].z + t2.vs[2].z) / 3.0f;
+	//	return z1 > z2;
+	//});
 
 	for (auto &prep_t : raster_vec)
 	{
@@ -151,7 +151,7 @@ void GlState::update(GlRender &render, float delta)
 
 		for (auto &t : triangles)
 		{
-			if (loaded_texture != nullptr) render.triangle_textured(t, *loaded_texture);
+			if (loaded_texture != nullptr) render.triangle_textured(t, *loaded_texture, texture_scale);
 			else render.triangle_filled(t);
 
 			t.color = {0, 255, 0};

@@ -13,7 +13,7 @@ void GlRender::triangle_frame(triangle t)
 	SDL_RenderDrawLineF(renderer, t.vs[2].x, t.vs[2].y, t.vs[1].x, t.vs[1].y);
 }
 
-void GlRender::triangle_textured(triangle t, const texture &texture)
+void GlRender::triangle_textured(triangle t, const texture &texture, float texture_scale)
 {
 	if (t.vs[1].y < t.vs[0].y)
 	{
@@ -109,8 +109,8 @@ void GlRender::triangle_textured(triangle t, const texture &texture)
 				if (t_w > depth_buffer[i * WIDTH + j])
 				{
 					uint8_t r, g, b;
-					float t_x = (t_u / t_w) * texture.get_width();
-					float t_y = (t_v / t_w) * texture.get_height();
+					float t_x = (t_u / t_w) * texture.width() * texture_scale;
+					float t_y = (t_v / t_w) * texture.height() * texture_scale;
 					texture.get_pixel(t_x, t_y, r, g, b);
 
 					set_color({r, g, b});
@@ -182,8 +182,8 @@ void GlRender::triangle_textured(triangle t, const texture &texture)
 				if (t_w > depth_buffer[i * WIDTH + j])
 				{
 					uint8_t r, g, b;
-					float t_x = (t_u / t_w) * texture.get_width();
-					float t_y = (t_v / t_w) * texture.get_height();
+					float t_x = (t_u / t_w) * texture.width() * texture_scale;
+					float t_y = (t_v / t_w) * texture.height() * texture_scale;
 					texture.get_pixel(t_x, t_y, r, g, b);
 
 					set_color({r, g, b});

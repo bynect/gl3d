@@ -16,6 +16,7 @@ public:
 	{
 		const float aspect_ratio = (float)HEIGHT / (float)WIDTH;
 		mat_proj = mat4::projection(fov, aspect_ratio, near, far);
+		if (loaded_texture != nullptr)  texture_scale /= loaded_mesh.texture_max;
 	}
 
 	void update(GlRender &render, float delta);
@@ -25,6 +26,7 @@ public:
 private:
 	mesh loaded_mesh;
 	texture *loaded_texture;
+	float texture_scale = 1.0f;
 
 	float angle = 0;
 	float angle_factor;
