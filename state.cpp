@@ -154,8 +154,8 @@ void GlState::update(GlRender &render, float delta)
 			if (loaded_texture != nullptr) render.triangle_textured(t, *loaded_texture, texture_scale);
 			else render.triangle_filled(t);
 
-			t.color = {0, 255, 0};
-			render.triangle_frame(t);
+			//t.color = {0, 255, 0};
+			//render.triangle_frame(t);
 		}
 	}
 }

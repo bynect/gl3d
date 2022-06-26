@@ -15,7 +15,8 @@ int main(int argc, const char **argv)
 		return 1;
 	}
 
-	if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != IMG_INIT_PNG)
+	int img_flags = IMG_INIT_PNG | IMG_INIT_JPG;
+	if ((IMG_Init(img_flags) & img_flags) != img_flags)
 	{
 		std::cerr << "Unable to initialize SDL2_image: " << IMG_GetError() << std::endl;
 		return 1;
