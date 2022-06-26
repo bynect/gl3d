@@ -19,6 +19,10 @@ bool texture::load_from_file(const char *path)
 
 void texture::get_pixel(int x, int y, uint8_t &r, uint8_t &g, uint8_t &b) const
 {
+	// NOTE: Is the max indexable pixel at (w, h) or (w-1, h-1)?
+	assert(x <= surface->w && x >= 0);
+	assert(y <= surface->h && y >= 0);
+
 	int bpp = surface->format->BytesPerPixel;
 	Uint8 *p = (Uint8 *)surface->pixels + y * surface->pitch + x * bpp;
 
