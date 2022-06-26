@@ -36,32 +36,32 @@ void GlRender::triangle_textured(triangle t, const texture &texture, float textu
 	float dy1 = t.vs[1].y - t.vs[0].y;
 	float dx1 = t.vs[1].x - t.vs[0].x;
 
-	float dv1 = t.ts[1].v - t.ts[0].v;
 	float du1 = t.ts[1].u - t.ts[0].u;
+	float dv1 = t.ts[1].v - t.ts[0].v;
 	float dw1 = t.ts[1].w - t.ts[0].w;
 
 	float dy2 = t.vs[2].y - t.vs[0].y;
 	float dx2 = t.vs[2].x - t.vs[0].x;
 
-	float dv2 = t.ts[2].v - t.ts[0].v;
 	float du2 = t.ts[2].u - t.ts[0].u;
+	float dv2 = t.ts[2].v - t.ts[0].v;
 	float dw2 = t.ts[2].w - t.ts[0].w;
 
-	float du1_step = 0, dv1_step = 0;
-	float du2_step = 0, dv2_step = 0;
+	float du1_step = 0, du2_step = 0;
+	float dv1_step = 0, dv2_step = 0;
 	float dw1_step = 0, dw2_step = 0;
 
 	float slope0 = 0, slope1 = 0;
-	if (dy1) slope0 = dx1 / (float)fabs(dy1);
-	if (dy2) slope1 = dx2 / (float)fabs(dy2);
+	if (dy1) slope0 = dx1 / fabs(dy1);
+	if (dy2) slope1 = dx2 / fabs(dy2);
 
-	if (dy1) du1_step = du1 / (float)fabs(dy1);
-	if (dy1) dv1_step = dv1 / (float)fabs(dy1);
-	if (dy1) dw1_step = dw1 / (float)fabs(dy1);
+	if (dy1) du1_step = du1 / fabs(dy1);
+	if (dy1) dv1_step = dv1 / fabs(dy1);
+	if (dy1) dw1_step = dw1 / fabs(dy1);
 
-	if (dy2) du2_step = du2 / (float)fabs(dy2);
-	if (dy2) dv2_step = dv2 / (float)fabs(dy2);
-	if (dy2) dw2_step = dw2 / (float)fabs(dy2);
+	if (dy2) du2_step = du2 / fabs(dy2);
+	if (dy2) dv2_step = dv2 / fabs(dy2);
+	if (dy2) dw2_step = dw2 / fabs(dy2);
 
 	float t_u, t_v, t_w;
 	if (dy1)
@@ -108,10 +108,14 @@ void GlRender::triangle_textured(triangle t, const texture &texture, float textu
 
 				if (t_w > depth_buffer[i * WIDTH + j])
 				{
+					float t_x = clamp(t_u / t_w * texture_scale, 1.0f, 0.0f);
+					float t_y = clamp(1.0f - (t_v / t_w * texture_scale), 1.0f, 0.0f);
+
+					int x = (int)ceilf(t_x * texture.width());
+					int y = (int)ceilf(t_y * texture.height());
+
 					uint8_t r, g, b;
-					float t_x = (t_u / t_w) * texture.width() * texture_scale;
-					float t_y = (t_v / t_w) * texture.height() * texture_scale;
-					texture.get_pixel(t_x, t_y, r, g, b);
+					texture.get_pixel(x, y, r, g, b);
 
 					set_color({r, g, b});
 					SDL_RenderDrawPoint(renderer, j, i);
@@ -125,17 +129,17 @@ void GlRender::triangle_textured(triangle t, const texture &texture, float textu
 	dy1 = t.vs[2].y - t.vs[1].y;
 	dx1 = t.vs[2].x - t.vs[1].x;
 
-	dv1 = t.ts[2].v - t.ts[1].v;
 	du1 = t.ts[2].u - t.ts[1].u;
+	dv1 = t.ts[2].v - t.ts[1].v;
 	dw1 = t.ts[2].w - t.ts[1].w;
 
-	if (dy1) slope0 = dx1 / (float)fabs(dy1);
-	if (dy2) slope1 = dx2 / (float)fabs(dy2);
+	if (dy1) slope0 = dx1 / fabs(dy1);
+	if (dy2) slope1 = dx2 / fabs(dy2);
 
 	du1_step = 0, dv1_step = 0;
-	if (dy1) du1_step = du1 / (float)fabs(dy1);
-	if (dy1) dv1_step = dv1 / (float)fabs(dy1);
-	if (dy1) dw1_step = dw1 / (float)fabs(dy1);
+	if (dy1) du1_step = du1 / fabs(dy1);
+	if (dy1) dv1_step = dv1 / fabs(dy1);
+	if (dy1) dw1_step = dw1 / fabs(dy1);
 
 	if (dy1)
 	{
@@ -181,10 +185,14 @@ void GlRender::triangle_textured(triangle t, const texture &texture, float textu
 
 				if (t_w > depth_buffer[i * WIDTH + j])
 				{
+					float t_x = clamp(t_u / t_w * texture_scale, 1.0f, 0.0f);
+					float t_y = clamp(1.0f - (t_v / t_w * texture_scale), 1.0f, 0.0f);
+
+					int x = (int)ceilf(t_x * texture.width());
+					int y = (int)ceilf(t_y * texture.height());
+
 					uint8_t r, g, b;
-					float t_x = (t_u / t_w) * texture.width() * texture_scale;
-					float t_y = (t_v / t_w) * texture.height() * texture_scale;
-					texture.get_pixel(t_x, t_y, r, g, b);
+					texture.get_pixel(x, y, r, g, b);
 
 					set_color({r, g, b});
 					SDL_RenderDrawPoint(renderer, j, i);

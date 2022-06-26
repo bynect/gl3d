@@ -7,3 +7,5 @@
 
 #define PI 3.14159265
 #define deg2rad(angle) ((angle) * (PI / 180.0f))
+
+#define clamp(n, high, low) std::min(high, std::max(n, low))
